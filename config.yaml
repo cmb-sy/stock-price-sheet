@@ -1,0 +1,9 @@
+# Filled from the screenshot. VERIFY spreadsheet_id char-by-char against the
+# browser URL (docs.google.com/spreadsheets/d/<THIS>/edit) before relying on it.
+spreadsheet_id: "1JkQ25PnxflO86axqflNw1HgAHAMVN4dyiQkj1mmFYgE"
+worksheet: "watchlist"   # rename the sheet tab to exactly this
+header_rows: 1
+ticker_column: "A"
+price_column: "C"
+updated_column: "D"
+timezone: "Asia/Tokyo"
