@@ -87,8 +87,8 @@ def fetch_price(symbol: str) -> float | None:
         hist = ticker.history(period="1d")
         if not hist.empty:
             return round(float(hist["Close"].iloc[-1]), 4)
-    except Exception as exc:  # noqa: BLE001 - log and treat as N/A
-        print(f"  ! fetch failed for {symbol}: {exc}", file=sys.stderr)
+    except Exception:  # noqa: BLE001 - treat as N/A; caller logs by row, not symbol
+        pass
     return None
 
 
@@ -112,11 +112,11 @@ def main() -> int:
         if price is None:
             n_na += 1
             cell_value: object = "N/A"
-            print(f"  {symbol}: N/A")
+            # Public repo: never log the symbol/price (Actions logs are world-readable).
+            print(f"  fetch failed at row {row}", file=sys.stderr)
         else:
             n_ok += 1
             cell_value = price
-            print(f"  {symbol}: {price}")
         updates.append({"range": f"{cfg['price_column']}{row}", "values": [[cell_value]]})
         if cfg["updated_column"]:
             updates.append({"range": f"{cfg['updated_column']}{row}", "values": [[now]]})
