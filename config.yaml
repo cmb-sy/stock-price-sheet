@@ -48,15 +48,15 @@ eps_yoy_columns:
 updated_column: "X"          # Track A update timestamp
 
 # Columns NOT touched by Track A:
-#   E  industry PER         Track B (web research)
-#   F  industry PBR         Track B (web research)
-#   Y  per-institution targets  Track B (web research)
-#   Z  theoretical price    Track B (web research)
-#   AA catalyst/rating news Track B (web research)
-#   AB source URLs          Track B (web research)
-#   AC Track B fetch date   Track B (web research)
-#   AD analysis comment     Track B (deep, repeated web research)
+#   E  industry PER          Track B (web research)
+#   F  industry PBR          Track B (web research)
+#   Y  average target price  Track B (web research, single value)
+#   Z  theoretical price     Track B (web research, single value)
+#   AA unused (reserved)
+#   AB unused (reserved)
+#   AC Track B fetch date    Track B (web research)
+#   AD analysis comment      Track B (Claude-synthesized, deep repeated research)
 #   A  stock name (Japanese)  manual
-#   AE my target price      manual
-#   AF memo                 manual
-#   AG ticker               manual (yfinance format)
+#   AE my target price       manual
+#   AF memo                  manual
+#   AG ticker                manual (yfinance format)

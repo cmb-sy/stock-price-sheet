@@ -48,20 +48,20 @@ names, headers, and data — stays in Japanese; the tab-name literals such as
   I 3-month max volume / J 52-week high / K 52-week low / L EPS (TTM) /
   M–P actual EPS (latest–3 FY ago) / Q,R EPS YoY (latest/prev)% /
   S–U consensus target (mean/high/low) / V number of analysts / W rating /
-  X Track A update time / Y per-institution targets / Z theoretical price /
-  AA catalyst/rating news / AB source URLs / AC Track B fetch date /
-  AD analysis comment / AE my target price (manual) / AF memo (manual) /
-  AG Ticker (manual, last column, yfinance format).
+  X Track A update time / Y average target price / Z theoretical price /
+  AA unused (reserved) / AB unused (reserved) / AC Track B fetch date /
+  AD analysis comment (Claude-synthesized) / AE my target price (manual) /
+  AF memo (manual) / AG Ticker (manual, last column, yfinance format).
 - **Track A** (`update_prices.py`, GitHub Actions, automatic): writes only values
   yfinance returns natively plus values derived from them (3-month max volume, EPS
   history, EPS YoY). No over-fetching, no AI inference. The columns it writes are
   limited to `config.yaml`'s `fields` plus the computed columns (I, M–R, X).
   Industry PER/PBR (E/F) is not available from yfinance, so Track A never touches it.
 - **Track B** (`.claude/skills/stock-research`, run manually by Claude): web-researches
-  the values yfinance can't give (industry-average PER/PBR, per-institution target
-  prices, theoretical price, catalyst/rating news, synthesized analysis) and writes
-  them to columns E/F/Y–AD. It targets **every row that has a ticker** (the monitor
-  flag has been removed).
+  the values yfinance can't give (industry-average PER/PBR, an average analyst target
+  price, a theoretical price) and writes a Claude-synthesized analysis comment, to
+  columns E/F/Y/Z/AC/AD. It targets **every row that has a ticker** (the monitor flag
+  has been removed). Columns AA/AB are unused.
 - Column A (stock name), AE (my target price), AF (memo), AG (Ticker), and the
   entire `売買履歴` tab are human-edited areas. Tracks A/B never overwrite them.
 - Numeric columns already have display formats (thousands separators, e.g. 1,000).
@@ -70,15 +70,20 @@ names, headers, and data — stays in Japanese; the tab-name literals such as
 
 ## Track B (web research) discipline
 
-- When researching prices, metrics, target prices, or catalysts, always reference
-  **the latest information as of the time of research**. Do not rely on memory or
-  stale cache; confirm the latest primary sources/reporting.
-- **Never fabricate** numbers, target prices, ratings, or catalysts. Leave
-  unconfirmed values blank or mark them "unknown"; never fill them in by guessing.
-- Every written value must be accompanied by a **source URL (column AB) and fetch
-  date (column AC)**.
-- The **analysis comment (column AD)** is a synthesis of repeated research from
-  multiple angles. If a comment already exists, update it with the latest information.
+- When researching prices, metrics, or target prices, always reference **the latest
+  information as of the time of research**. Do not rely on memory or stale cache;
+  confirm the latest primary sources/reporting.
+- **Never fabricate** numbers, target prices, or ratings. Leave unconfirmed values
+  blank or mark them "unknown"; never fill them in by guessing.
+- Record the **fetch date (column AC)** for the values. Source URLs are not stored in
+  the sheet; summarize the basis/reasoning in the AD analysis comment instead.
+- `Y` (average target price) and `Z` (theoretical price) are each a **single number**,
+  not a list. Columns AA/AB are unused.
+- The **analysis comment (column AD)** is **Claude's own analytical assessment** — an
+  opinionated judgment (lead with a verdict, use the figures as evidence, close with a
+  stance), not a restatement of the researched numbers — synthesizing repeated research
+  from multiple angles with the Track A fundamentals. If a comment already exists,
+  update it with the latest information.
 - The skill's output is handled only transiently in the local Claude session. Never
   leave tickers, prices, or PII **in committed files or public logs (Actions, etc.)**
   (handling them transiently for research is fine).

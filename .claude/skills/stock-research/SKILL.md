@@ -1,6 +1,6 @@
 ---
 name: stock-research
-description: Deep-research watched/held stocks on the web and write industry-average PER/PBR, per-institution targets, theoretical price, catalysts, and a synthesized analysis comment to the sheet (Track B, manual run)
+description: Deep-research watched/held stocks on the web and write industry-average PER/PBR, an average analyst target price, a theoretical price, and a Claude-synthesized analysis comment to the sheet (Track B, manual run)
 argument-hint: "[--tab 保有銘柄|監視-JP|監視-US] (default: every stock in every tab)"
 ---
 
@@ -19,17 +19,19 @@ Japanese. Tab names like `保有銘柄` below are sheet identifiers, kept as-is.
   `AG`). The stock name is column A (Japanese, manual).
 - **Only Track B columns may be written** (`research_io.py write` blocks other columns):
   - `E` industry PER / `F` industry PBR
-  - `Y` per-institution targets / `Z` theoretical price / `AA` catalyst/rating news
-    / `AB` source URLs / `AC` Track B fetch date / `AD` analysis comment
+  - `Y` average target price (single value) / `Z` theoretical price (single value)
+    / `AC` Track B fetch date / `AD` analysis comment (Claude-synthesized prose)
+- `AA` and `AB` are unused (no catalyst-news or source-URL column); `write` refuses them.
 
 ## Discipline (strict)
 
 - **Latest information only**: reference the most recent primary sources/reporting
   as of the time of research. Do not rely on memory or stale cache. Record the fetch
   date for each value (column AC).
-- **No fabrication**: do not fill industry averages, target prices, ratings,
-  theoretical prices, or catalysts in by guessing. If you cannot confirm a value,
-  leave it blank or mark it "unknown", and always attach a source URL (column AB).
+- **No fabrication**: do not fill industry averages, target prices, or theoretical
+  prices in by guessing. If you cannot confirm a value, leave it blank or mark it
+  "unknown". (Source URLs are not recorded in the sheet; summarize the basis in the
+  AD analysis comment instead.)
 - **Public-repo discipline**: this skill's output is handled only transiently in the
   local Claude session. Do not leave tickers/prices in committed files or public logs
   (see the repo-root `CLAUDE.md`).
@@ -64,22 +66,25 @@ For each stock, research **repeatedly from multiple angles**. Do not stop at one
 search; change the angle and cross-check:
 
 - **E industry PER / F industry PBR**: the average PER/PBR of the industry (sector)
-  the stock belongs to. State the source (the outlet publishing the industry average,
-  and the date). Not obtainable from yfinance, so always confirm on the web.
-- **Y per-institution targets**: target prices per brokerage/research firm (e.g.
-  "<company> target price <brokerage>"). Pair the institution name with the figure;
-  list multiple if available.
-- **Z theoretical price**: a theoretical/fair price from a reliable source. State the
-  source. Leave blank if unconfirmed.
-- **AA catalyst/rating news**: recent earnings, guidance revisions, rating changes,
-  orders/new products, and other share-price catalysts. Concise, with dates.
-- **AB source URLs**: the basis URLs for E/F/Y/Z/AA and AD. Multiple allowed.
+  the stock belongs to. Use a consistent basis (e.g. the JPX sector weighted average)
+  and write a **single number**. Not obtainable from yfinance, so always confirm on
+  the web. Leave blank if unconfirmed.
+- **Y average target price**: collect target prices per brokerage/research firm, then
+  write the **single simple mean** of the figures you found (one number, not a list).
+  Leave blank if none found.
+- **Z theoretical price**: a **single** theoretical/fair price. If a source gives
+  multiple bases (PER/PBR), write their average. Leave blank if unconfirmed.
 - **AC Track B fetch date**: the research date (`date +%F`).
-- **AD analysis comment**: a synthesis combining the above with the Track A
-  fundamentals (columns B–W: price/PER/PBR/dividend/market cap/volume/52-week
-  range/EPS history & YoY/analyst consensus, etc.). Summarize the valuation level
-  (including vs. the industry average), upside/downside targets, key catalysts, and
-  risks. Overwrite any existing comment with the latest information.
+- **AD analysis comment**: **Claude's own analytical assessment** — an opinionated
+  judgment, not a restatement of the figures — synthesized from the research findings
+  combined with the Track A fundamentals (columns B–W: price/PER/PBR/dividend/market
+  cap/volume/52-week range/EPS history & YoY/analyst consensus, etc.). Lead with a
+  one-line verdict, then reason through the valuation level (including vs. the industry
+  average), the average target (Y) vs. the current price (upside/downside) and the
+  theoretical price (Z), recent catalysts (earnings, guidance revisions, rating changes
+  — woven into the text, since there is no separate news column), and key risks, then
+  close with a clear stance. Use the figures as evidence for the view; do not merely
+  list them. Overwrite any existing comment with the latest information.
 
 Researching by both ticker (stock code) and company name improves accuracy.
 
@@ -89,19 +94,18 @@ Pass the research results as JSON via stdin. Use the `row`/`tab` from step 1:
 
 ```bash
 echo '{"writes":[
-  {"tab":"保有銘柄","row":2,"col":"E","value":"12.3 (industry avg, source: ... 2026-06)"},
-  {"tab":"保有銘柄","row":2,"col":"F","value":"1.1 (industry avg, source: ...)"},
-  {"tab":"保有銘柄","row":2,"col":"Y","value":"Broker A 7000 / Broker B 6800 (as of 2026-06)"},
-  {"tab":"保有銘柄","row":2,"col":"Z","value":"theoretical price 6500 (source: ...)"},
-  {"tab":"保有銘柄","row":2,"col":"AA","value":"2026Q1 op. income +12%, upward revision (2026-05-xx)"},
-  {"tab":"保有銘柄","row":2,"col":"AB","value":"https://... ; https://..."},
+  {"tab":"保有銘柄","row":2,"col":"E","value":"12.3"},
+  {"tab":"保有銘柄","row":2,"col":"F","value":"1.1"},
+  {"tab":"保有銘柄","row":2,"col":"Y","value":"6900"},
+  {"tab":"保有銘柄","row":2,"col":"Z","value":"6500"},
   {"tab":"保有銘柄","row":2,"col":"AC","value":"2026-06-05"},
-  {"tab":"保有銘柄","row":2,"col":"AD","value":"<synthesized analysis comment>"}
+  {"tab":"保有銘柄","row":2,"col":"AD","value":"<Claude-synthesized analysis comment>"}
 ]}' | .venv/bin/python .claude/skills/stock-research/research_io.py write
 ```
 
-(Replace `value` with the actual research results. The figures and names above are
-format examples, not real data.)
+(Replace `value` with the actual research results. The figures above are format
+examples, not real data. E/F/Y/Z are plain numbers — the sheet's display formats add
+the thousands separators / decimals.)
 
 ### 4. Report
 
@@ -112,4 +116,6 @@ blank because it could not be confirmed, state that explicitly.
 
 - Writing to Track A's automatic columns (B–D, G–X among the config target columns),
   A (stock name), AE (my target price), AF (memo), AG (Ticker), or the `売買履歴` tab.
-- Writing any number without a source.
+- Writing to the now-unused `AA`/`AB` columns (`research_io.py write` refuses them).
+- Writing a per-institution list to `Y`, or multiple basis prices to `Z` (one number each).
+- Fabricating a value you could not confirm (leave it blank instead).

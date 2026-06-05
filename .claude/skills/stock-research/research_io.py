@@ -7,8 +7,8 @@ Subcommands:
               skill can decide what to (re)search and update.
   write       Read {"writes": [{"tab","row","col","value"}, ...]} from stdin and
               batch-write each value (USER_ENTERED). Only Track B columns may be
-              written (industry PER/PBR + the research block Y-AD); anything else
-              is refused.
+              written (industry PER/PBR + the research block Y/Z/AC/AD); anything
+              else is refused.
 
 This output is consumed by Claude locally during a manual run. It is never
 committed and must not be piped into the repo or into public Actions logs.
@@ -30,10 +30,8 @@ from sheet import col_to_index, get_client, load_config, open_spreadsheet  # noq
 TRACK_B_COLS = {
     "E": "industry PER",
     "F": "industry PBR",
-    "Y": "per-institution targets",
+    "Y": "average target price",
     "Z": "theoretical price",
-    "AA": "catalyst/rating news",
-    "AB": "source URLs",
     "AC": "Track B fetch date",
     "AD": "analysis comment",
 }

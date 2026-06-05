@@ -17,10 +17,10 @@ Two tracks feed the sheet:
   (3-month max volume, the last four years of annual EPS, and EPS year-over-year)
   and an update timestamp. It fetches only what yfinance provides — no scraping, no AI.
 - **Track B — manual (Claude skill, `.claude/skills/stock-research`).** For things
-  yfinance can't give (industry-average PER/PBR, per-institution target prices,
-  theoretical price, rating-change news, a synthesized analysis comment), a Claude
-  skill does live web research, on demand, and writes the result with source URLs.
-  It processes every row that has a ticker (no monitor flag).
+  yfinance can't give (industry-average PER/PBR, an average analyst target price, a
+  theoretical price), a Claude skill does live web research, on demand, and writes a
+  Claude-synthesized analysis comment. It processes every row that has a ticker (no
+  monitor flag).
 
 The sheet has four tabs: `保有銘柄` (holdings), `監視-JP`, and `監視-US` (watchlists,
 all sharing one 33-column layout), plus `売買履歴` (a manual trade-journal tab the
@@ -40,9 +40,9 @@ yfinance ticker in the last column `AG` (manual).
   - US: `AAPL`, `MSFT`, ...
 - Column `A` is the stock name (manual, Japanese). Track A fills the
   yfinance-native and derived columns (`B`–`D`, `G`–`X`); columns `E`/`F`
-  (industry-average PER/PBR) and `Y`–`AD` are filled by Track B; `AE` (your
-  target price) and `AF` (memo) are yours to edit. There is no monitor flag —
-  Track B researches every row that has a ticker.
+  (industry-average PER/PBR) and `Y`/`Z`/`AC`/`AD` are filled by Track B (`AA`/`AB`
+  are unused); `AE` (your target price) and `AF` (memo) are yours to edit. There is
+  no monitor flag — Track B researches every row that has a ticker.
 - The `売買履歴` tab is a free-form trade journal (date / ticker / buy-sell /
   shares / price / your reason / a difficulty note) — no script writes to it.
 
@@ -98,11 +98,10 @@ python update_prices.py
 
 Track B is a Claude Code skill at `.claude/skills/stock-research/`. Open this repo
 in Claude Code and run the skill; it reads every row that has a ticker, does live
-web research with the latest available sources, and writes industry-average
-PER/PBR, per-institution targets, a theoretical price, catalyst/rating news,
-source URLs, and a synthesized analysis comment — never fabricating values, always
-citing sources. See that skill's `SKILL.md` and the project `CLAUDE.md` for the
-research discipline.
+web research with the latest available sources, and writes industry-average PER/PBR,
+an average analyst target price, a theoretical price, and a Claude-synthesized
+analysis comment — never fabricating values (unconfirmed fields are left blank). See
+that skill's `SKILL.md` and the project `CLAUDE.md` for the research discipline.
 
 ## Caveats
 
