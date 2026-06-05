@@ -7,21 +7,44 @@ your own needs to be running — GitHub's runners do the work.
 
 ## How it works
 
-1. A scheduled workflow (`.github/workflows/update-prices.yml`) runs during
-   market hours.
-2. `update_prices.py` reads tickers from a configured column of your sheet.
-3. It fetches each latest price via yfinance.
-4. It writes the price (and an update timestamp) back into the sheet via the
-   Google Sheets API.
+Two tracks feed the sheet:
+
+- **Track A — automatic (this script, `update_prices.py`).** A scheduled workflow
+  (`.github/workflows/update-prices.yml`) runs `update_prices.py`, which reads the
+  tickers from the last column (`AG`) of each watchlist tab and writes back the
+  yfinance-native fields listed in `config.yaml` (price, PER/PBR, dividend yield,
+  52-week range, EPS, consensus analyst targets, rating) plus values it can derive
+  (3-month max volume, the last four years of annual EPS, and EPS year-over-year)
+  and an update timestamp. It fetches only what yfinance provides — no scraping, no AI.
+- **Track B — manual (Claude skill, `.claude/skills/stock-research`).** For things
+  yfinance can't give (industry-average PER/PBR, per-institution target prices,
+  theoretical price, rating-change news, a synthesized analysis comment), a Claude
+  skill does live web research, on demand, and writes the result with source URLs.
+  It processes every row that has a ticker (no monitor flag).
+
+The sheet has four tabs: `保有銘柄` (holdings), `監視-JP`, and `監視-US` (watchlists,
+all sharing one 33-column layout), plus `売買履歴` (a manual trade-journal tab the
+scripts never touch). The Japanese stock name lives in column `A` (manual), and the
+yfinance ticker in the last column `AG` (manual).
 
 ## Setup
 
 ### 1. Prepare the Google Sheet
 
-- Put your tickers in one column, in **yfinance format**:
+- Create three watchlist tabs named exactly `保有銘柄`, `監視-JP`, and `監視-US`,
+  plus a `売買履歴` tab. (Tab names and headers are in Japanese; the repository
+  references them by these literal names.)
+- In each watchlist tab, put your tickers in the **last column (`AG`)**, in
+  **yfinance format**:
   - Japan (Tokyo): `7203.T`, `9984.T`, ...
   - US: `AAPL`, `MSFT`, ...
-- Leave a column for the price and (optionally) one for the update timestamp.
+- Column `A` is the stock name (manual, Japanese). Track A fills the
+  yfinance-native and derived columns (`B`–`D`, `G`–`X`); columns `E`/`F`
+  (industry-average PER/PBR) and `Y`–`AD` are filled by Track B; `AE` (your
+  target price) and `AF` (memo) are yours to edit. There is no monitor flag —
+  Track B researches every row that has a ticker.
+- The `売買履歴` tab is a free-form trade journal (date / ticker / buy-sell /
+  shares / price / your reason / a difficulty note) — no script writes to it.
 
 ### 2. Create a Google service account
 
@@ -48,12 +71,14 @@ your own needs to be running — GitHub's runners do the work.
 
 ```bash
 cp config.example.yaml config.yaml
-# edit config.yaml with your spreadsheet_id, worksheet name, and column letters
+# edit config.yaml: set your spreadsheet_id. The watchlists list, ticker_column,
+# the yfinance `fields` map, and the derived/updated columns are pre-filled for
+# the 保有銘柄 / 監視-JP / 監視-US tabs.
 git add config.yaml && git commit -m "configure sheet mapping" && git push
 ```
 
 `config.yaml` must be committed so the Actions runner can read it. It contains
-no secrets — the `spreadsheet_id` is just the ID from the sheet URL.
+no secrets and no tickers — the `spreadsheet_id` is just the ID from the sheet URL.
 
 ### 6. Run it
 
@@ -68,6 +93,16 @@ pip install -r requirements.txt
 export GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
 python update_prices.py
 ```
+
+## Track B (manual research with Claude)
+
+Track B is a Claude Code skill at `.claude/skills/stock-research/`. Open this repo
+in Claude Code and run the skill; it reads every row that has a ticker, does live
+web research with the latest available sources, and writes industry-average
+PER/PBR, per-institution targets, a theoretical price, catalyst/rating news,
+source URLs, and a synthesized analysis comment — never fabricating values, always
+citing sources. See that skill's `SKILL.md` and the project `CLAUDE.md` for the
+research discipline.
 
 ## Caveats
 

@@ -1,26 +1,92 @@
-# stock-price-sheet — Claude / コントリビューター向け指示
+# stock-price-sheet — instructions for Claude / contributors
 
-このリポジトリは **public** である。コミットした内容も、GitHub Actions の実行ログも、誰でも閲覧できる。以下を厳守すること。
+This repository is **public**. Both committed content and GitHub Actions run logs
+are visible to anyone. Follow the rules below strictly.
 
-## 個人情報・保有銘柄を一切載せない（最優先）
+(The repository's files are written in English. The Google Sheet itself — tab
+names, headers, and data — stays in Japanese; the tab-name literals such as
+`保有銘柄` in this repo are sheet identifiers and are intentionally kept as-is.)
 
-- オーナーの個人情報（氏名・メールアドレス・住所・電話番号などの PII）を、コード・設定・コミットメッセージ・README・ドキュメント・ログのいずれにも含めないこと。
-- オーナーが実際に保有/監視している銘柄（ティッカー）を、リポジトリのどこにも載せないこと。実際の銘柄は **非公開の Google スプレッドシートにのみ存在し、リポジトリには決してコミットしない**。
-- ドキュメントやコード中のティッカー例は、形式説明のための一般例（`7203.T`, `AAPL` など）に限ること。オーナーの実保有銘柄を例として使わないこと。
+## Never include PII or held tickers (top priority)
 
-## ログ出力の制約（public ＝ ログも公開）
+- Never include the owner's PII (name, email, address, phone number, etc.) in any
+  code, config, commit message, README, documentation, or log.
+- Never put the tickers the owner actually holds/watches anywhere in the repo. The
+  real tickers exist **only in the private Google Sheet and are never committed**.
+- Ticker examples in docs or code must be generic format-illustration examples
+  (`7203.T`, `AAPL`, etc.). Do not use the owner's real holdings as examples.
+- Do not write the owner's real held/watched tickers as a literal in any file in
+  the repo (code, config, README, docs, anything under `.claude/skills/`, sample
+  or seed scripts) — not even as an "example". Real tickers live **only in the
+  sheet's Ticker column (the last column, AG)**.
+- If a setup/seed script that contains tickers is needed, keep and run it outside
+  the repo (e.g. `/tmp`) and never commit it.
 
-- 標準出力・標準エラーに、ティッカー記号・価格・PII を出力しないこと。Actions のログは世界に公開される。
-- デバッグ目的の出力は、銘柄を特定できない情報（行番号・件数など）に限ること。
-- `update_prices.py` は銘柄名・価格をログに出さず、集計件数のみを出力する設計。この性質を退行させないこと。
+## Logging constraints (public = logs are public too)
 
-## シークレットの扱い
+- Never print ticker symbols, prices, or PII to stdout/stderr. Actions logs are
+  world-readable.
+- Debug output must be limited to information that cannot identify a stock (row
+  numbers, counts, etc.).
+- `update_prices.py` is designed to log only aggregate counts, never names or
+  prices. Do not regress this property.
 
-- サービスアカウントの JSON 鍵は GitHub Secret `GCP_SA_KEY` 経由でのみ注入する。リポジトリにコミットしない（`.gitignore` 済み: `*.json`）。
-- `config.yaml` には `spreadsheet_id`（公開して問題ない ID）のみを書く。ティッカー・PII・鍵を書かないこと。
+## Handling secrets
 
-## 補足
+- The service-account JSON key is injected only via the GitHub secret `GCP_SA_KEY`.
+  Never commit it (already gitignored: `*.json`).
+- `config.yaml` contains only the `spreadsheet_id` (an ID that is safe to publish).
+  Never put tickers, PII, or keys in it.
 
-- ティッカーは yfinance 形式（`7203.T`, `AAPL`。`TYO:7203` ではない）。
-- ローカル実行: `GOOGLE_APPLICATION_CREDENTIALS=/path/to/sa-key.json python update_prices.py`
-- スプレッドシートへのアクセスは「シートをサービスアカウントのメールに共有する」ことで付与される（GCP の IAM ロールではない）。サービスアカウントは共有されたシートにのみアクセスでき、オーナーの Drive 全体にはアクセスしない。
+## Data layout (two tracks / the sheet)
+
+- The sheet has 4 tabs: `保有銘柄`, `監視-JP`, `監視-US` (watchlists; one shared
+  33-column layout, A–AG) and `売買履歴`. `watchlists` in `config.yaml` are the
+  processed tabs.
+- Column layout (A–AG): A stock name (manual, Japanese) / B current price / C PER /
+  D PBR / E industry PER / F industry PBR / G dividend yield / H market cap /
+  I 3-month max volume / J 52-week high / K 52-week low / L EPS (TTM) /
+  M–P actual EPS (latest–3 FY ago) / Q,R EPS YoY (latest/prev)% /
+  S–U consensus target (mean/high/low) / V number of analysts / W rating /
+  X Track A update time / Y per-institution targets / Z theoretical price /
+  AA catalyst/rating news / AB source URLs / AC Track B fetch date /
+  AD analysis comment / AE my target price (manual) / AF memo (manual) /
+  AG Ticker (manual, last column, yfinance format).
+- **Track A** (`update_prices.py`, GitHub Actions, automatic): writes only values
+  yfinance returns natively plus values derived from them (3-month max volume, EPS
+  history, EPS YoY). No over-fetching, no AI inference. The columns it writes are
+  limited to `config.yaml`'s `fields` plus the computed columns (I, M–R, X).
+  Industry PER/PBR (E/F) is not available from yfinance, so Track A never touches it.
+- **Track B** (`.claude/skills/stock-research`, run manually by Claude): web-researches
+  the values yfinance can't give (industry-average PER/PBR, per-institution target
+  prices, theoretical price, catalyst/rating news, synthesized analysis) and writes
+  them to columns E/F/Y–AD. It targets **every row that has a ticker** (the monitor
+  flag has been removed).
+- Column A (stock name), AE (my target price), AF (memo), AG (Ticker), and the
+  entire `売買履歴` tab are human-edited areas. Tracks A/B never overwrite them.
+- Numeric columns already have display formats (thousands separators, e.g. 1,000).
+  Write raw numbers; let the format handle the grouping.
+- See the comments in `config.yaml` for the full column definitions.
+
+## Track B (web research) discipline
+
+- When researching prices, metrics, target prices, or catalysts, always reference
+  **the latest information as of the time of research**. Do not rely on memory or
+  stale cache; confirm the latest primary sources/reporting.
+- **Never fabricate** numbers, target prices, ratings, or catalysts. Leave
+  unconfirmed values blank or mark them "unknown"; never fill them in by guessing.
+- Every written value must be accompanied by a **source URL (column AB) and fetch
+  date (column AC)**.
+- The **analysis comment (column AD)** is a synthesis of repeated research from
+  multiple angles. If a comment already exists, update it with the latest information.
+- The skill's output is handled only transiently in the local Claude session. Never
+  leave tickers, prices, or PII **in committed files or public logs (Actions, etc.)**
+  (handling them transiently for research is fine).
+
+## Notes
+
+- Tickers use yfinance format (`7203.T`, `AAPL`; not `TYO:7203`).
+- Local run: `GOOGLE_APPLICATION_CREDENTIALS=/path/to/sa-key.json python update_prices.py`
+- Access to the spreadsheet is granted by "sharing the sheet with the service
+  account's email" (not via a GCP IAM role). The service account can access only
+  the shared sheet, not the owner's entire Drive.

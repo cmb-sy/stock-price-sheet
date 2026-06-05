@@ -1,13 +1,51 @@
-# Copy this file to config.yaml and fill in your values, then commit config.yaml
-# so GitHub Actions can read it. These values are NOT secrets (the spreadsheet_id
-# is just the ID from the URL; access is controlled by sharing the sheet with the
-# service account). The service-account JSON key is the only secret and is passed
-# via the GCP_SA_KEY GitHub Actions secret, never committed.
-
+# Copy this file to config.yaml and set your spreadsheet_id, then commit
+# config.yaml so GitHub Actions can read it. These values are NOT secrets (the
+# spreadsheet_id is just the ID from the URL; access is controlled by sharing
+# the sheet with the service account). The service-account JSON key is the only
+# secret and is passed via the GCP_SA_KEY GitHub Actions secret, never committed.
+#
+# Do NOT put any ticker symbols in this repo. Tickers go in the ticker column of
+# the private sheet only. See CLAUDE.md.
 spreadsheet_id: "PASTE_SPREADSHEET_ID_HERE"  # from docs.google.com/spreadsheets/d/<THIS_PART>/edit
-worksheet: "Sheet1"      # worksheet (tab) name exactly as shown in the sheet
-header_rows: 1           # number of leading header rows to skip
-ticker_column: "A"       # column holding yfinance-format tickers: 7203.T (JP), AAPL (US)
-price_column: "C"        # column to write the latest price into
-updated_column: "D"      # column to write the update timestamp; set "" to disable
-timezone: "Asia/Tokyo"   # timezone used for the update timestamp
+timezone: "Asia/Tokyo"
+header_rows: 1
+
+# Worksheet (tab) names Track A processes. Tickers in the ticker column use
+# yfinance format: 7203.T (Tokyo), AAPL (US) — generic format examples only.
+# These are the literal Japanese tab names in the sheet (the sheet stays in
+# Japanese); the code references them verbatim, so do not translate them.
+watchlists:
+  - "保有銘柄"   # holdings
+  - "監視-JP"    # JP watchlist
+  - "監視-US"    # US watchlist
+ticker_column: "AG"   # last column
+name_column: "A"      # stock name (manual Japanese; Track A never writes it)
+
+# Track A writes ONLY these yfinance Ticker.info fields. key = field, value = column.
+fields:
+  currentPrice: "B"
+  trailingPE: "C"
+  priceToBook: "D"
+  dividendYield: "G"
+  marketCap: "H"
+  fiftyTwoWeekHigh: "J"
+  fiftyTwoWeekLow: "K"
+  trailingEps: "L"
+  targetMeanPrice: "S"
+  targetHighPrice: "T"
+  targetLowPrice: "U"
+  numberOfAnalystOpinions: "V"
+  recommendationKey: "W"
+
+# Track A computed fields:
+volume_3mo_max_column: "I"   # max daily volume over the last 3 months
+eps_history_columns:         # actual annual EPS, newest first
+  - "M"
+  - "N"
+  - "O"
+  - "P"
+eps_yoy_columns:
+  latest: "Q"
+  prev: "R"
+
+updated_column: "X"          # timestamp column; set "" to disable

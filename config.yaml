@@ -1,9 +1,62 @@
-# Filled from the screenshot. VERIFY spreadsheet_id char-by-char against the
-# browser URL (docs.google.com/spreadsheets/d/<THIS>/edit) before relying on it.
+# stock-price-sheet configuration. Committed so GitHub Actions can read it.
+# Contains NO secrets and NO tickers. The spreadsheet_id is just the ID from the
+# sheet URL; access is granted by sharing the sheet with the service account.
+# Tickers live ONLY in the ticker column of the private sheet — never in this repo.
 spreadsheet_id: "1JkQ25PnxflO86axqflNw1HgAHAMVN4dyiQkj1mmFYgE"
-worksheet: "watchlist"   # rename the sheet tab to exactly this
-header_rows: 1
-ticker_column: "A"
-price_column: "C"
-updated_column: "D"
 timezone: "Asia/Tokyo"
+header_rows: 1
+
+# Track A (yfinance, via GitHub Actions) processes every ticker found in the
+# ticker column of each worksheet below. The tabs share one column layout.
+# These are the literal Japanese tab names in the sheet (the sheet stays in
+# Japanese); the code references them verbatim, so do not translate them.
+watchlists:
+  - "保有銘柄"   # holdings
+  - "監視-JP"    # JP watchlist
+  - "監視-US"    # US watchlist
+ticker_column: "AG"   # last column (manual entry, yfinance format)
+name_column: "A"      # stock name — manual Japanese name; Track A never writes it
+
+# Track A writes ONLY these yfinance-native Ticker.info fields (no over-fetching,
+# no AI). key = field name, value = destination column letter.
+fields:
+  currentPrice: "B"              # current price
+  trailingPE: "C"                # PER
+  priceToBook: "D"               # PBR
+  dividendYield: "G"             # dividend yield
+  marketCap: "H"                 # market cap
+  fiftyTwoWeekHigh: "J"          # 52-week high
+  fiftyTwoWeekLow: "K"           # 52-week low
+  trailingEps: "L"               # EPS (TTM, current)
+  targetMeanPrice: "S"           # consensus target (mean)
+  targetHighPrice: "T"           # consensus target (high)
+  targetLowPrice: "U"            # consensus target (low)
+  numberOfAnalystOpinions: "V"   # number of analysts
+  recommendationKey: "W"         # rating
+
+# Track A computed fields (derived from yfinance financials/history):
+volume_3mo_max_column: "I"   # 3-month max volume = history("3mo")["Volume"].max()
+eps_history_columns:         # actual annual EPS, newest first (income_stmt Diluted/Basic EPS)
+  - "M"                      # EPS latest FY
+  - "N"                      # EPS 1 FY ago
+  - "O"                      # EPS 2 FY ago
+  - "P"                      # EPS 3 FY ago
+eps_yoy_columns:
+  latest: "Q"          # EPS YoY (latest)% = (EPS latest - EPS 1 ago) / |EPS 1 ago| * 100
+  prev: "R"            # EPS YoY (prev)%   = (EPS 1 ago  - EPS 2 ago) / |EPS 2 ago| * 100
+
+updated_column: "X"          # Track A update timestamp
+
+# Columns NOT touched by Track A:
+#   E  industry PER         Track B (web research)
+#   F  industry PBR         Track B (web research)
+#   Y  per-institution targets  Track B (web research)
+#   Z  theoretical price    Track B (web research)
+#   AA catalyst/rating news Track B (web research)
+#   AB source URLs          Track B (web research)
+#   AC Track B fetch date   Track B (web research)
+#   AD analysis comment     Track B (deep, repeated web research)
+#   A  stock name (Japanese)  manual
+#   AE my target price      manual
+#   AF memo                 manual
+#   AG ticker               manual (yfinance format)
