@@ -1,0 +1,27 @@
+name: Update stock prices
+
+on:
+  schedule:
+    # NOTE: GitHub Actions cron is in UTC and scheduled runs are frequently
+    # delayed 10-30+ minutes (sometimes skipped) under load. Treat this as
+    # "roughly every 30 min during market hours", not real-time.
+    #   JP  TSE 09:00-15:00 JST = 00:00-06:00 UTC
+    #   US  ~09:30-16:00 ET    = ~13:00-21:00 UTC (covers both EDT and EST)
+    - cron: "*/30 0-6,13-21 * * 1-5"
+  workflow_dispatch: {}
+
+# Scheduled workflows are auto-disabled after 60 days with no repo commits.
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Update prices
+        env:
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+        run: python update_prices.py

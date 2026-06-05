@@ -1,0 +1,13 @@
+# Copy this file to config.yaml and fill in your values, then commit config.yaml
+# so GitHub Actions can read it. These values are NOT secrets (the spreadsheet_id
+# is just the ID from the URL; access is controlled by sharing the sheet with the
+# service account). The service-account JSON key is the only secret and is passed
+# via the GCP_SA_KEY GitHub Actions secret, never committed.
+
+spreadsheet_id: "PASTE_SPREADSHEET_ID_HERE"  # from docs.google.com/spreadsheets/d/<THIS_PART>/edit
+worksheet: "Sheet1"      # worksheet (tab) name exactly as shown in the sheet
+header_rows: 1           # number of leading header rows to skip
+ticker_column: "A"       # column holding yfinance-format tickers: 7203.T (JP), AAPL (US)
+price_column: "C"        # column to write the latest price into
+updated_column: "D"      # column to write the update timestamp; set "" to disable
+timezone: "Asia/Tokyo"   # timezone used for the update timestamp
