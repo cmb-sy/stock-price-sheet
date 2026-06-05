@@ -43,26 +43,27 @@ names, headers, and data — stays in Japanese; the tab-name literals such as
 - The sheet has 4 tabs: `保有銘柄`, `監視-JP`, `監視-US` (watchlists; one shared
   33-column layout, A–AG) and `売買履歴`. `watchlists` in `config.yaml` are the
   processed tabs.
-- Column layout (A–AG): A stock name (manual, Japanese) / B current price / C PER /
-  D PBR / E industry PER / F industry PBR / G dividend yield / H market cap /
-  I 3-month max volume / J 52-week high / K 52-week low / L EPS (TTM) /
-  M–P actual EPS (latest–3 FY ago) / Q,R EPS YoY (latest/prev)% /
-  S–U consensus target (mean/high/low) / V number of analysts / W rating /
-  X Track A update time / Y average target price / Z theoretical price /
-  AA unused (reserved) / AB unused (reserved) / AC Track B fetch date /
-  AD analysis comment (Claude-synthesized) / AE my target price (manual) /
+- Column layout (A–AG): A stock name (manual, Japanese) / B current price /
+  C my target price (manual, placed next to B) / D PER / E PBR / F industry PER /
+  G industry PBR / H dividend yield / I market cap / J 3-month max volume /
+  K 52-week high / L 52-week low / M EPS (TTM) /
+  N–Q actual EPS (latest–3 FY ago) / R,S EPS YoY (latest/prev)% /
+  T–V consensus target (mean/high/low) / W number of analysts / X rating /
+  Y Track A update time / Z average target price / AA theoretical price /
+  AB unused (reserved) / AC unused (reserved) / AD Track B fetch date /
+  AE analysis comment (Claude-synthesized) /
   AF memo (manual) / AG Ticker (manual, last column, yfinance format).
 - **Track A** (`update_prices.py`, GitHub Actions, automatic): writes only values
   yfinance returns natively plus values derived from them (3-month max volume, EPS
   history, EPS YoY). No over-fetching, no AI inference. The columns it writes are
-  limited to `config.yaml`'s `fields` plus the computed columns (I, M–R, X).
-  Industry PER/PBR (E/F) is not available from yfinance, so Track A never touches it.
+  limited to `config.yaml`'s `fields` plus the computed columns (J, N–S, Y).
+  Industry PER/PBR (F/G) is not available from yfinance, so Track A never touches it.
 - **Track B** (`.claude/skills/stock-research`, run manually by Claude): web-researches
   the values yfinance can't give (industry-average PER/PBR, an average analyst target
   price, a theoretical price) and writes a Claude-synthesized analysis comment, to
-  columns E/F/Y/Z/AC/AD. It targets **every row that has a ticker** (the monitor flag
-  has been removed). Columns AA/AB are unused.
-- Column A (stock name), AE (my target price), AF (memo), AG (Ticker), and the
+  columns F/G/Z/AA/AD/AE. It targets **every row that has a ticker** (the monitor flag
+  has been removed). Columns AB/AC are unused.
+- Column A (stock name), C (my target price), AF (memo), AG (Ticker), and the
   entire `売買履歴` tab are human-edited areas. Tracks A/B never overwrite them.
 - Numeric columns already have display formats (thousands separators, e.g. 1,000).
   Write raw numbers; let the format handle the grouping.
@@ -75,11 +76,11 @@ names, headers, and data — stays in Japanese; the tab-name literals such as
   confirm the latest primary sources/reporting.
 - **Never fabricate** numbers, target prices, or ratings. Leave unconfirmed values
   blank or mark them "unknown"; never fill them in by guessing.
-- Record the **fetch date (column AC)** for the values. Source URLs are not stored in
-  the sheet; summarize the basis/reasoning in the AD analysis comment instead.
-- `Y` (average target price) and `Z` (theoretical price) are each a **single number**,
-  not a list. Columns AA/AB are unused.
-- The **analysis comment (column AD)** is **Claude's own analytical assessment** — an
+- Record the **fetch date (column AD)** for the values. Source URLs are not stored in
+  the sheet; summarize the basis/reasoning in the AE analysis comment instead.
+- `Z` (average target price) and `AA` (theoretical price) are each a **single number**,
+  not a list. Columns AB/AC are unused.
+- The **analysis comment (column AE)** is **Claude's own analytical assessment** — an
   opinionated judgment (lead with a verdict, use the figures as evidence, close with a
   stance), not a restatement of the researched numbers — synthesizing repeated research
   from multiple angles with the Track A fundamentals. If a comment already exists,

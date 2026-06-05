@@ -19,44 +19,46 @@ name_column: "A"      # stock name — manual Japanese name; Track A never write
 
 # Track A writes ONLY these yfinance-native Ticker.info fields (no over-fetching,
 # no AI). key = field name, value = destination column letter.
+# NOTE: column C is the manual "my target price", placed next to B (current price)
+# for at-a-glance comparison, so the auto fields below start at D.
 fields:
   currentPrice: "B"              # current price
-  trailingPE: "C"                # PER
-  priceToBook: "D"               # PBR
-  dividendYield: "G"             # dividend yield
-  marketCap: "H"                 # market cap
-  fiftyTwoWeekHigh: "J"          # 52-week high
-  fiftyTwoWeekLow: "K"           # 52-week low
-  trailingEps: "L"               # EPS (TTM, current)
-  targetMeanPrice: "S"           # consensus target (mean)
-  targetHighPrice: "T"           # consensus target (high)
-  targetLowPrice: "U"            # consensus target (low)
-  numberOfAnalystOpinions: "V"   # number of analysts
-  recommendationKey: "W"         # rating
+  trailingPE: "D"                # PER
+  priceToBook: "E"               # PBR
+  dividendYield: "H"             # dividend yield
+  marketCap: "I"                 # market cap
+  fiftyTwoWeekHigh: "K"          # 52-week high
+  fiftyTwoWeekLow: "L"           # 52-week low
+  trailingEps: "M"               # EPS (TTM, current)
+  targetMeanPrice: "T"           # consensus target (mean)
+  targetHighPrice: "U"           # consensus target (high)
+  targetLowPrice: "V"            # consensus target (low)
+  numberOfAnalystOpinions: "W"   # number of analysts
+  recommendationKey: "X"         # rating
 
 # Track A computed fields (derived from yfinance financials/history):
-volume_3mo_max_column: "I"   # 3-month max volume = history("3mo")["Volume"].max()
+volume_3mo_max_column: "J"   # 3-month max volume = history("3mo")["Volume"].max()
 eps_history_columns:         # actual annual EPS, newest first (income_stmt Diluted/Basic EPS)
-  - "M"                      # EPS latest FY
-  - "N"                      # EPS 1 FY ago
-  - "O"                      # EPS 2 FY ago
-  - "P"                      # EPS 3 FY ago
+  - "N"                      # EPS latest FY
+  - "O"                      # EPS 1 FY ago
+  - "P"                      # EPS 2 FY ago
+  - "Q"                      # EPS 3 FY ago
 eps_yoy_columns:
-  latest: "Q"          # EPS YoY (latest)% = (EPS latest - EPS 1 ago) / |EPS 1 ago| * 100
-  prev: "R"            # EPS YoY (prev)%   = (EPS 1 ago  - EPS 2 ago) / |EPS 2 ago| * 100
+  latest: "R"          # EPS YoY (latest)% = (EPS latest - EPS 1 ago) / |EPS 1 ago| * 100
+  prev: "S"            # EPS YoY (prev)%   = (EPS 1 ago  - EPS 2 ago) / |EPS 2 ago| * 100
 
-updated_column: "X"          # Track A update timestamp
+updated_column: "Y"          # Track A update timestamp
 
 # Columns NOT touched by Track A:
-#   E  industry PER          Track B (web research)
-#   F  industry PBR          Track B (web research)
-#   Y  average target price  Track B (web research, single value)
-#   Z  theoretical price     Track B (web research, single value)
-#   AA unused (reserved)
-#   AB unused (reserved)
-#   AC Track B fetch date    Track B (web research)
-#   AD analysis comment      Track B (Claude-synthesized, deep repeated research)
 #   A  stock name (Japanese)  manual
-#   AE my target price       manual
-#   AF memo                  manual
-#   AG ticker                manual (yfinance format)
+#   C  my target price        manual (placed next to B current price)
+#   F  industry PER           Track B (web research)
+#   G  industry PBR           Track B (web research)
+#   Z  average target price   Track B (web research, single value)
+#   AA theoretical price      Track B (web research, single value)
+#   AB unused (reserved)
+#   AC unused (reserved)
+#   AD Track B fetch date     Track B (web research)
+#   AE analysis comment       Track B (Claude's own assessment, deep repeated research)
+#   AF memo                   manual
+#   AG ticker                 manual (yfinance format)

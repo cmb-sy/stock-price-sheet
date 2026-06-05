@@ -7,7 +7,7 @@ Subcommands:
               skill can decide what to (re)search and update.
   write       Read {"writes": [{"tab","row","col","value"}, ...]} from stdin and
               batch-write each value (USER_ENTERED). Only Track B columns may be
-              written (industry PER/PBR + the research block Y/Z/AC/AD); anything
+              written (industry PER/PBR + the research block Z/AA/AD/AE); anything
               else is refused.
 
 This output is consumed by Claude locally during a manual run. It is never
@@ -28,12 +28,12 @@ from sheet import col_to_index, get_client, load_config, open_spreadsheet  # noq
 
 # Track B columns this helper is allowed to surface and write.
 TRACK_B_COLS = {
-    "E": "industry PER",
-    "F": "industry PBR",
-    "Y": "average target price",
-    "Z": "theoretical price",
-    "AC": "Track B fetch date",
-    "AD": "analysis comment",
+    "F": "industry PER",
+    "G": "industry PBR",
+    "Z": "average target price",
+    "AA": "theoretical price",
+    "AD": "Track B fetch date",
+    "AE": "analysis comment",
 }
 
 

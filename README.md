@@ -38,11 +38,12 @@ yfinance ticker in the last column `AG` (manual).
   **yfinance format**:
   - Japan (Tokyo): `7203.T`, `9984.T`, ...
   - US: `AAPL`, `MSFT`, ...
-- Column `A` is the stock name (manual, Japanese). Track A fills the
-  yfinance-native and derived columns (`B`–`D`, `G`–`X`); columns `E`/`F`
-  (industry-average PER/PBR) and `Y`/`Z`/`AC`/`AD` are filled by Track B (`AA`/`AB`
-  are unused); `AE` (your target price) and `AF` (memo) are yours to edit. There is
-  no monitor flag — Track B researches every row that has a ticker.
+- Column `A` is the stock name (manual, Japanese). `C` is your target price
+  (manual), placed next to `B` (current price) for at-a-glance comparison. Track A
+  fills the yfinance-native and derived columns (`B`, `D`–`E`, `H`–`Y`); columns
+  `F`/`G` (industry-average PER/PBR) and `Z`/`AA`/`AD`/`AE` are filled by Track B
+  (`AB`/`AC` are unused); `C` (your target price) and `AF` (memo) are yours to edit.
+  There is no monitor flag — Track B researches every row that has a ticker.
 - The `売買履歴` tab is a free-form trade journal (date / ticker / buy-sell /
   shares / price / your reason / a difficulty note) — no script writes to it.
 
