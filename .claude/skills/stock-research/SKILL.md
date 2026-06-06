@@ -41,19 +41,28 @@ Japanese. Tab names like `監視-JP` / `監視-US` are sheet identifiers, kept a
 ## What the analysis comment must be
 
 `AI分析コメント` is **Claude's own opinionated verdict**, not a restatement of the
-researched numbers. In Japanese, it should:
+researched numbers. Write it in Japanese as a **substantial, structured analysis**
+(目安 **500〜900 字**) — long enough to actually justify the call, not a one-liner.
+Use **short paragraphs with clear breaks** (the web app renders line breaks), ideally
+in this order, each as its own paragraph:
 
-1. **Open with a stance** on whether this is worth buying at/around the owner's
-   購入検討株価 (buy now / wait / pass — your honest call).
-2. **Test the owner's own thesis**: engage the 購入検討理由 — does it still hold
-   given the latest facts? — and judge whether the 購入検討株価 is a *reasonable
-   entry price* (too high / about right / room to wait for lower), using current
-   price, your researched fair value (理論株価) and analyst target (アナリスト予想
-   株価), PER/PBR vs. the industry averages, EPS trend, dividend, and the
-   market/sector backdrop as evidence.
-3. **Name the key risks** and **what to watch** (a concrete trigger to revisit,
-   e.g. the 次回決算日).
-4. **Record the research date** in the text (there is no separate date column).
+1. **結論（スタンス）**: open with whether this is worth buying at/around the owner's
+   購入検討株価 — **買い / 押し目待ち / 様子見 / 見送り** — in one or two sentences.
+2. **根拠（バリュエーション＆ファンダ）**: the body of the analysis. Test the owner's
+   購入検討理由 — does it still hold given the latest facts? — and judge whether the
+   購入検討株価 is a *reasonable entry price* (too high / about right / room to wait),
+   using current price, your researched fair value (理論株価) and analyst target
+   (アナリスト予想株価), PER/PBR vs. the industry averages, PEG, EPS trend & YoY,
+   dividend, 52-week range position, and the market/sector backdrop as evidence.
+   Spell out the reasoning, don't just list figures.
+3. **リスク・注目点**: name the key risks and **what to watch** — a concrete trigger
+   to revisit (e.g. the 次回決算日, a guidance or rate event).
+4. **まとめ**: close by restating the stance and the price level/condition that would
+   change it.
+
+Finally, **record the research date** in the text (there is no separate date column).
+Depth over brevity, but **never pad with fabrication** — if a fact is unconfirmed, say
+so plainly rather than inventing detail to hit a length.
 
 ## Discipline (strict)
 

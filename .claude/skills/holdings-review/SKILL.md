@@ -30,19 +30,27 @@ Japanese. The tab name `保有銘柄` below is a sheet identifier, kept as-is.)
 
 ## What the comment must be
 
-A short letter to the owner, in Japanese, that:
+A candid, **substantial, structured** letter to the owner, in Japanese (目安
+**500〜900 字**) — long enough to genuinely advise, not a one-liner. Use **short
+paragraphs with clear breaks** (the web app renders line breaks), ideally in this
+order, each as its own paragraph:
 
-1. **Opens with a verdict** tied to *their* thesis — does the 購入理由 still hold given
-   the latest facts? (hold / add / trim / reconsider — your honest call).
-2. **Tests the thesis against the present**: weave in the current price vs. their
-   目標売却株価 (remaining upside/downside to their own target), the dividend
-   yield/amount, valuation, recent catalysts (earnings, guidance, sector/macro
-   shifts), and the market environment — calibrated to their **horizon** (a short-term
-   holder and a long-term holder get different advice from the same facts).
-3. **Names the key risks** and **what to watch** next (a concrete trigger to revisit).
-4. **Closes with a clear stance.** Use the figures as evidence for a judgment — do not
-   merely restate them.
-5. **Records the research date** in the text (there is no separate date column).
+1. **結論（スタンス）**: open with a verdict tied to *their* thesis — does the 購入理由
+   still hold given the latest facts? **継続保有 / 買い増し / 一部利確 / 見直し** — your
+   honest call, in one or two sentences.
+2. **根拠（現状評価）**: the body. Weave in the current price vs. their 目標売却株価
+   (remaining upside/downside to their own target) and the evaluation 評価損益率,
+   the dividend yield/amount, valuation (PER/PBR), recent catalysts (earnings,
+   guidance, sector/macro shifts), and the market environment — calibrated to their
+   **horizon** (a short-term and a long-term holder get different advice from the same
+   facts). Spell out the reasoning, don't just list figures.
+3. **リスク・注目点**: name the key risks and **what to watch** next — a concrete
+   trigger to revisit (e.g. the next earnings, a guidance/rate event).
+4. **まとめ**: close with a clear stance and the level/condition that would change it.
+
+Finally, **record the research date** in the text (there is no separate date column).
+Depth over brevity, but **never pad with fabrication** — if a fact is unconfirmed, say
+so plainly rather than inventing detail to hit a length.
 
 ## Discipline (strict)
 
