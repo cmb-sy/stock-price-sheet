@@ -1,0 +1,57 @@
+name: Deploy webapp
+
+# Auto-deploy the Apps Script web app on push. Updates ONE fixed deployment in
+# place (clasp deploy -i …) so the shared /exec URL stays stable instead of
+# spawning a new URL every push.
+#
+# Secrets required (set via `gh secret set`; NEVER committed):
+#   CLASPRC_JSON        – contents of ~/.clasprc.json (clasp OAuth credentials)
+#   CLASP_SCRIPT_ID     – the Apps Script scriptId (kept out of the repo; .clasp.json is gitignored)
+#   CLASP_DEPLOYMENT_ID – the deployment to update in place (stable /exec URL)
+# If CLASPRC_JSON is unset the job no-ops (so the repo works before secrets exist).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "webapp/**"
+      - ".github/workflows/deploy-webapp.yml"
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+      CLASP_SCRIPT_ID: ${{ secrets.CLASP_SCRIPT_ID }}
+      CLASP_DEPLOYMENT_ID: ${{ secrets.CLASP_DEPLOYMENT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Guard on secrets
+        id: guard
+        run: |
+          if [ -z "$CLASPRC_JSON" ] || [ -z "$CLASP_SCRIPT_ID" ] || [ -z "$CLASP_DEPLOYMENT_ID" ]; then
+            echo "Deploy secrets not set; skipping (set CLASPRC_JSON / CLASP_SCRIPT_ID / CLASP_DEPLOYMENT_ID)."
+            echo "skip=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=0" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-node@v4
+        if: steps.guard.outputs.skip == '0'
+        with:
+          node-version: "20"
+
+      - name: Restore clasp credentials and project link
+        if: steps.guard.outputs.skip == '0'
+        run: |
+          printf '%s' "$CLASPRC_JSON" > "$HOME/.clasprc.json"
+          printf '{"scriptId":"%s","rootDir":""}\n' "$CLASP_SCRIPT_ID" > webapp/.clasp.json
+
+      - name: Push and deploy (update fixed deployment in place)
+        if: steps.guard.outputs.skip == '0'
+        working-directory: webapp
+        run: |
+          npx --yes @google/clasp@3.3.0 push --force
+          npx --yes @google/clasp@3.3.0 deploy -i "$CLASP_DEPLOYMENT_ID" --description "ci ${GITHUB_SHA::7}"
