@@ -1,138 +1,256 @@
 # stock-price-sheet
 
-Keeps a private Google Sheet of your **stock holdings** up to date, and lets Claude
-write you a personalized advisory comment on each position. Prices and dividends are
-fetched with [yfinance](https://github.com/ranaroussi/yfinance), so both Japanese
-(`7203.T`) and US (`AAPL`) tickers work. No machine of your own needs to be running —
-GitHub's runners do the automatic part.
+非公開の Google スプレッドシートで **保有株** と **監視銘柄** を管理し、価格・指標の自動更新と、
+Claude による銘柄ごとの助言コメントを書き込むためのリポジトリです。価格・配当は
+[yfinance](https://github.com/ranaroussi/yfinance) で取得するため、日本株（`7203.T`）・
+米国株（`AAPL`）の両方に対応します。自動更新は GitHub のランナーが実行するので、自前のマシンを
+常時起動しておく必要はありません。さらに、手動列をブラウザ（モバイル可）から編集できる
+Apps Script の web app を同梱しています。
 
-## How it works
+> このシートは**唯一の真実（source of truth）**です。実ティッカー・価格・PII は
+> **シート内にのみ**存在し、リポジトリには一切コミットしません（詳細は[セキュリティ方針](#セキュリティ方針)）。
 
-The repo processes two kinds of tab, both listed in `config.yaml`'s `tabs`:
+## 概要
 
-- **holdings** (`保有銘柄`) — stocks you actually hold.
-- **watchlist** (`監視-JP`, `監視-US`) — stocks you are evaluating but don't hold yet.
+`config.yaml` の `tabs` に列挙された 2 種類のタブを処理します。
 
-The `売買履歴` (trade history) tab is left untouched.
+- **holdings（`保有銘柄`）** — 実際に保有している銘柄。
+- **watchlist（`監視-JP` / `監視-US`）** — まだ保有しておらず購入を検討中の銘柄。
 
-Two tracks feed every processed tab:
+`売買履歴`（取引履歴）タブはどのコードパスからも読み書きしません。
 
-- **Track A — automatic (`update_prices.py`).** A scheduled workflow
-  (`.github/workflows/update-prices.yml`) reads the tickers from each tab's `Ticker`
-  column and writes back yfinance-native values (no scraping, no AI):
-  - *holdings*: `現在株価` (current price), `配当利回り` (dividend yield, a percent
-    number), `配当金` (total annual dividend = per-share dividend × your `取得株数`).
-  - *watchlist*: a richer set — price, PER/PBR, dividend yield, market cap
-    (normalised to 億円, FX-converted to JPY), EPS (TTM), EPS YoY, rating, next
-    earnings date, a kabutan URL built from the ticker, and a write timestamp.
-- **Track B — manual (Claude skills).** Two skills do the web research yfinance can't:
-  - `.claude/skills/holdings-review` — for each holding, deep-researches over repeated
-    loops, weighs it against **your own** `購入理由` / `短中長期` / `目標売却株価`, and
-    writes a personalized verdict into `AIコメント`.
-  - `.claude/skills/stock-research` — for each watched stock, researches the values
-    yfinance can't give (the industry/theme, industry PER/PBR, an analyst-consensus
-    target price, a theoretical price) and writes those plus a synthesized verdict
-    (`AI分析コメント`).
+各タブには 3 つの更新経路があります。
 
-Columns are mapped by **header name**, not by position (see each tab's `columns` map
-in `config.yaml`), so adding or moving a column in the sheet does not break anything;
-only renaming or removing a header does.
+| 経路 | 担当 | 書き込む列 |
+|------|------|-----------|
+| **Track A**（自動） | `update_prices.py`（GitHub Actions / yfinance、AI なし） | 価格・配当・PER/PBR・時価総額・EPS・レーティング・次回決算日・更新時刻 など |
+| **Track B**（手動） | Claude skills（`holdings-review` / `stock-research`） | `AIコメント` / `業界やテーマ`・`業界PER`・`業界PBR`・`アナリスト予想株価`・`理論株価`・`AI分析コメント` |
+| **webapp**（手動） | Apps Script web app（`webapp/`） | **手動列のみ**（Track A / Track B 列は読み取り専用） |
 
-## Setup
+列は**位置ではなくヘッダー名**でマッピングします（各タブの `config.yaml` の `columns` を参照）。
+そのため列の追加・並び替えでは壊れません。ヘッダーの**改名・削除**だけが影響します。
 
-### 1. Prepare the Google Sheet
+## アーキテクチャ
 
-- Have the tabs your `config.yaml` lists. Out of the box: `保有銘柄` (holdings),
-  `監視-JP` and `監視-US` (watchlists). Row 1 of each holds the Japanese header labels
-  from that tab's `columns` map. The order does not matter — the code finds each
-  column by its label.
-- Put your tickers in each tab's `Ticker` column, in **yfinance format**:
-  - Japan (Tokyo): `7203.T`, `9984.T`, ...
-  - US: `AAPL`, `MSFT`, ...
-- Fill the manual columns yourself. Track A fills the price/metric columns; the
-  holdings-review skill fills `AIコメント` (holdings) and stock-research fills the
-  Track B columns (watchlists). Rows with no ticker are skipped.
+```mermaid
+flowchart LR
+    OWNER(["オーナー<br/>(ブラウザ / モバイル)"])
 
-### 2. Create a Google service account
+    subgraph trackA["Track A: 自動更新"]
+        GHA["GitHub Actions<br/>(cron: 平日 2 回)"]
+        UP["update_prices.py"]
+        GHA --> UP
+    end
 
-1. Open the [Google Cloud Console](https://console.cloud.google.com/), create
-   (or pick) a project.
-2. Enable the **Google Sheets API** for that project.
-3. Create a **service account**, then create a **JSON key** for it and download
-   the file.
-4. Copy the service account's email (looks like
-   `name@project.iam.gserviceaccount.com`).
+    subgraph trackB["Track B: 手動リサーチ"]
+        CC["Claude Code skills<br/>holdings-review / stock-research"]
+    end
 
-### 3. Share the sheet with the service account
+    subgraph webapp["webapp: 手動編集"]
+        WA["Apps Script web app<br/>Code.gs + index.html<br/>(executeAs = 本人)"]
+    end
 
-- In the Google Sheet, click **Share** and add the service account email with
-  **Editor** access. (Without this, the script cannot write.)
+    YF["yfinance API"]
+    WEB["Web 上の最新一次情報"]
+    SHEET[("Google Sheet<br/>非公開 / 唯一の真実")]
 
-### 4. Add the key as a GitHub Actions secret
+    UP -. fetch .-> YF
+    CC -. リサーチ .-> WEB
+    UP -->|"価格・指標を書込"| SHEET
+    CC -->|"AIコメント / 分析を書込"| SHEET
+    OWNER -->|"手動列を編集"| WA
+    WA <-->|"手動列のみ読み書き"| SHEET
 
-- Repo → **Settings → Secrets and variables → Actions → New repository secret**
-- Name: `GCP_SA_KEY`
-- Value: the entire contents of the downloaded JSON key file.
+    classDef store fill:#eef,stroke:#88a;
+    class SHEET store;
+```
 
-### 5. Configure the sheet mapping
+## データレイアウト
+
+列は owner（更新元）ごとに分類されます。手動列は人間が編集し、どのコードパスも上書きしません。
+
+### holdings タブ（`保有銘柄`）
+
+| ヘッダー | owner | 意味 |
+|----------|-------|------|
+| 銘柄名 / 取得日 / 短中長期 / 目標売却株価 / 取得株価 / 取得株数 / 購入理由 / Ticker | 手動 | 銘柄名・取得情報・保有方針・目標売却価格・購入理由など |
+| 現在株価 / 配当利回り / 配当金 | **Track A** | yfinance（配当金 = 1株配当 × 取得株数） |
+| AIコメント | **Track B**（holdings-review） | 購入理由・保有方針・目標売却価格を踏まえた個別助言 |
+
+### watchlist タブ（`監視-JP` / `監視-US`）
+
+| owner | ヘッダー |
+|-------|----------|
+| 手動 | 銘柄名 / 購入検討株価 / 購入検討理由 / Ticker |
+| **Track A** | かぶたんURL / 現在株価 / PER / PBR / 配当利回り / 時価総額 / 現在EPS / 年間EPS前年比（%） / レーティング / 次回決算日 / 更新時刻 |
+| **Track B**（stock-research） | 業界やテーマ / 業界PER / 業界PBR / アナリスト予想株価 / 理論株価 / AI分析コメント |
+
+> 時価総額は **億円**に正規化（非 JPY 上場は FX で JPY 換算）し、JP/US タブで単位を統一します。
+> 数値セルは Google Sheets の**表示書式**を持ち、セルには生の数値（ソート可能）を保持します。
+
+## シーケンス: Track A（自動更新）
+
+```mermaid
+sequenceDiagram
+    participant Cron as GitHub Actions
+    participant Script as update_prices.py
+    participant YF as yfinance
+    participant Sheet as Google Sheet
+
+    Cron->>Script: workflow 起動<br/>(GCP_SA_KEY を注入)
+    Script->>Sheet: 各タブの Ticker 列を読取
+    loop Ticker を持つ各行
+        Script->>YF: 価格・指標を取得
+        YF-->>Script: currentPrice / PER / 配当 など
+    end
+    Script->>Sheet: Track A 列のみ書込<br/>(ヘッダー名で解決)
+    Note over Script,Sheet: ログは件数のみ。<br/>ティッカー・価格は出力しない
+```
+
+## シーケンス: webapp（手動編集）
+
+```mermaid
+sequenceDiagram
+    actor Owner as オーナー
+    participant App as web app (index.html)
+    participant GS as Code.gs<br/>(executeAs = 本人)
+    participant Sheet as Google Sheet
+
+    Owner->>App: URL を開く<br/>(初回のみ spreadsheets 認可)
+    App->>GS: getTabs()
+    GS-->>App: 3 タブ
+    Owner->>App: タブ選択
+    App->>GS: getRows(tab)
+    GS->>Sheet: getDisplayValues()
+    GS-->>App: 全列(表示値) + 編集可否フラグ
+    Owner->>App: 行の「編集」→ 手動列を変更 → 保存
+    App->>GS: saveRow(tab, row, 変更分のみ)
+    GS->>GS: 手動列か検証<br/>(Track A/B 列なら拒否)
+    GS->>Sheet: setValue<br/>(数値らしき値は Number 化)
+    GS-->>App: 書込件数
+    App->>GS: getRows(tab) で再読込
+```
+
+## セットアップ
+
+### 1. Google スプレッドシートの準備
+
+- `config.yaml` が列挙するタブを用意する。既定は `保有銘柄`（holdings）・`監視-JP` / `監視-US`
+  （watchlist）。各タブの 1 行目に、`columns` マップの日本語ヘッダーラベルを置く。**順番は不問**
+  （コードがラベルで列を解決する）。
+- 各タブの `Ticker` 列にティッカーを **yfinance 形式**で入力する。
+  - 日本（東証）: `7203.T`, `9984.T`, ...
+  - 米国: `AAPL`, `MSFT`, ...
+- 手動列は自分で埋める。Track A が価格・指標列を、holdings-review が `AIコメント`、stock-research
+  が watchlist の Track B 列を埋める。ティッカーのない行はスキップされる。
+
+### 2. Google サービスアカウントの作成
+
+1. [Google Cloud Console](https://console.cloud.google.com/) でプロジェクトを作成（または選択）。
+2. そのプロジェクトで **Google Sheets API** を有効化。
+3. **サービスアカウント**を作成し、**JSON キー**を発行してダウンロード。
+4. サービスアカウントのメールアドレス（`name@project.iam.gserviceaccount.com` 形式）を控える。
+
+### 3. シートをサービスアカウントと共有
+
+- スプレッドシートの **共有** から、サービスアカウントのメールを **編集者** 権限で追加する
+  （これがないとスクリプトは書き込めない）。
+
+### 4. キーを GitHub Actions シークレットに登録
+
+- リポジトリ → **Settings → Secrets and variables → Actions → New repository secret**
+- 名前: `GCP_SA_KEY`
+- 値: ダウンロードした JSON キーファイルの全内容。
+
+### 5. シートマッピングの設定
 
 ```bash
 cp config.example.yaml config.yaml
-# edit config.yaml: set your spreadsheet_id. The `tabs` list (each tab's name,
-# type, and role -> Japanese header label map) is pre-filled for the
-# 保有銘柄 / 監視-JP / 監視-US layout.
+# config.yaml を編集: spreadsheet_id を設定する。tabs リスト（各タブの name・type・
+# role -> 日本語ヘッダーラベルのマップ）は 保有銘柄 / 監視-JP / 監視-US 用に記入済み。
 git add config.yaml && git commit -m "configure sheet mapping" && git push
 ```
 
-`config.yaml` must be committed so the Actions runner can read it. It contains no
-secrets and no tickers — the `spreadsheet_id` is just the ID from the sheet URL.
+`config.yaml` は Actions ランナーが読めるようコミットが必要。シークレットもティッカーも含まれない
+（`spreadsheet_id` はシート URL の ID で、公開しても安全）。
 
-### 6. Run it
+### 6. 実行
 
-- Go to the **Actions** tab, select **Update stock prices**, and click
-  **Run workflow** (`workflow_dispatch`) to test immediately.
-- After that, it runs automatically on the schedule.
+- **Actions** タブ → **Update stock prices** → **Run workflow**（`workflow_dispatch`）で即時テスト。
+- 以降はスケジュールで自動実行される。
 
-## Local testing
+## webapp（手動列のブラウザ編集）
+
+`webapp/` は Apps Script の **web app**。シートを ID で開き、**デプロイした本人として**実行するため
+サービスアカウントキーは不要。Track A / Track B 列は読み取り専用で、サーバ側が書き込みを拒否する。
+
+セットアップ手順（`clasp` の install / login、Apps Script API 有効化、create / push / deploy、
+アクセス設定）は **[`webapp/SETUP.md`](webapp/SETUP.md)** を参照。要点:
+
+```bash
+cd webapp
+npx --yes @google/clasp login          # 初回のみ（シート所有者の Google アカウント）
+npx --yes @google/clasp create --type standalone --title "stock-price-sheet"
+git checkout -- appsscript.json        # create がマニフェストを上書きするため復元
+npx --yes @google/clasp push --force
+npx --yes @google/clasp deploy --description "v1"
+```
+
+デプロイ後、Apps Script エディタの **デプロイを管理** で **実行＝自分 / アクセス＝自分のみ** を確認。
+初回アクセス時に `spreadsheets` スコープの認可を求められる。`.clasp.json`（scriptId）は gitignore
+済みでローカルに留まる。
+
+## ローカルテスト
 
 ```bash
 pip install -r requirements.txt
 export GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
-python update_prices.py --dry-run   # fetch + resolve columns, write nothing
-python update_prices.py             # actually write
+python update_prices.py --dry-run   # 取得・列解決のみ（書き込みなし）
+python update_prices.py             # 実書き込み
 python -m unittest discover -s tests
 ```
 
-## Track B (manual research with Claude)
+## Track B（Claude による手動リサーチ）
 
-Track B is two Claude Code skills. Open this repo in Claude Code and run the one you
-need; each does looped live web research with the latest sources and never fabricates
-values (anything unconfirmed is left blank / hedged in the text):
+Track B は 2 つの Claude Code skill。このリポジトリを Claude Code で開いて必要な方を実行する。
+いずれも最新の一次情報をループで繰り返し調べ、**数値を捏造しない**。
 
-- **`.claude/skills/holdings-review/`** — for the holdings tab. Reads each holding
-  (your purchase reason, horizon, target sell price, plus the Track A figures) and
-  writes a personalized advisory comment into `AIコメント`.
-- **`.claude/skills/stock-research/`** — for the watchlist tabs. Researches the
-  values yfinance can't give (the industry/theme, industry PER/PBR, an
-  analyst-consensus target price, a theoretical price) and writes them plus a
-  synthesized verdict into `AI分析コメント`.
+- **`.claude/skills/holdings-review/`** — holdings タブ用。各保有銘柄について、自分の
+  `購入理由` / `短中長期` / `目標売却株価` と Track A の数値を踏まえ、個別の助言コメントを
+  `AIコメント` に書く。
+- **`.claude/skills/stock-research/`** — watchlist タブ用。yfinance では得られない値（業界・テーマ、
+  業界 PER/PBR、アナリストのコンセンサス目標株価、理論株価）を調べ、`購入検討株価` が妥当な
+  エントリーかの判断とともに `AI分析コメント` に書く。
 
-See each skill's `SKILL.md` and the project `CLAUDE.md` for the research discipline.
+確認できない数値セルには**最小限の理由語**（例: `赤字` / `確認不可`）を 1〜2 語で入れる
+（文章にしない・日付も入れない。リサーチ日付はコメント本文に記録する）。空欄や捏造は不可。
+リサーチ詳細は各 `SKILL.md` とプロジェクトの `CLAUDE.md` を参照。
 
-If you edit the sheet's structure (rename/remove a header, rename a tab), run the
-`sheet-sync` skill to reconcile `config.yaml`.
+シート構造を変えたら（ヘッダーやタブの改名・削除）、`sheet-sync` skill で `config.yaml` を整合させる。
 
-## Caveats
+## セキュリティ方針
 
-- **Timing is approximate.** GitHub Actions scheduled runs are commonly delayed
-  10-30+ minutes and can be skipped under load. Fine for holdings tracking, not for
-  real-time trading.
-- **Schedule is UTC.** The workflow runs twice a day on weekdays — 06:00 UTC
-  (15:00 JST, after the Tokyo close) and 22:00 UTC (07:00 JST, after the US close).
-  Adjust the cron if your markets differ.
-- **Auto-disable.** GitHub disables scheduled workflows after 60 days without a
-  commit to the repo. Push something occasionally, or re-enable from the Actions tab.
-- **Tickers must be yfinance format** (`7203.T`, not `TYO:7203`).
-- **Dividend currency.** 配当金 is in the stock's own currency (JPY for `*.T`, USD for
-  US tickers), so a mixed-market holdings tab mixes currencies in that column — same
-  as 現在株価.
+このリポジトリは**非公開**だが、コミット内容と Actions ログは漏洩しうるものとして扱う
+（多層防御。可視性を理由にルールを緩めない）。
+
+- オーナーの **PII**（氏名・メール・住所・電話番号など）をコード・設定・コミットメッセージ・
+  README・ドキュメント・ログのどこにも含めない。
+- **保有・監視している実ティッカーをリポジトリのどこにも置かない**。実ティッカーは各タブの
+  `Ticker` 列にのみ存在し、コミットしない。ドキュメント中の例は汎用形式（`7203.T` / `AAPL`）のみ。
+- **ログ**にはティッカー・価格・PII を出力しない。デバッグ出力はタブ名・行番号・件数に限る。
+  `update_prices.py` は集計件数のみをログする。
+- サービスアカウント JSON キーは GitHub シークレット `GCP_SA_KEY` 経由でのみ注入し、コミットしない
+  （`*.json` は gitignore 済み）。`config.yaml` には `spreadsheet_id`（公開可）と汎用ヘッダーラベルのみ。
+
+## 注意点
+
+- **タイミングは目安**。GitHub Actions のスケジュール実行は 10〜30 分以上遅れたり、負荷時にスキップ
+  されることがある。保有管理には十分だが、リアルタイム取引には向かない。
+- **スケジュールは UTC**。平日 1 日 2 回 — 06:00 UTC（15:00 JST、東証クローズ後）と
+  22:00 UTC（07:00 JST、米国クローズ後）。市場が異なる場合は cron を調整する。
+- **自動無効化**。GitHub はリポジトリへのコミットが 60 日ない場合スケジュール workflow を無効化する。
+  ときどき push するか、Actions タブから再有効化する。
+- **ティッカーは yfinance 形式**（`7203.T`。`TYO:7203` は不可）。
+- **配当金の通貨**。配当金は銘柄自身の通貨建て（`*.T` は JPY、米国株は USD）。市場混在の holdings
+  タブではこの列も通貨が混在する（現在株価と同様）。
+```
