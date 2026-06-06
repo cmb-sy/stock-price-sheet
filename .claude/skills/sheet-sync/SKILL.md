@@ -17,7 +17,7 @@ header makes its role fail to resolve. This skill detects that and reconciles
 `layout_io.py` emits only structural metadata (tab names, dimensions, header
 labels). Header labels are generic column names and contain no tickers/prices/PII.
 Do not read or print any data rows. Never write this output into committed files or
-public logs.
+run logs.
 
 ## Authentication
 
@@ -76,7 +76,7 @@ worksheet's `header` array.
 | `pbr`             | PBR                | Track A: priceToBook                  |
 | `industry_pbr`    | 業界PBR            | Track B (stock-research)              |
 | `dividend_yield`  | 配当利回り         | Track A: dividendYield (percent)      |
-| `market_cap`      | 時価総額           | Track A: marketCap                    |
+| `market_cap`      | 時価総額           | Track A: marketCap → 億円 (FX→JPY)     |
 | `eps_ttm`         | 現在EPS            | Track A: trailingEps                  |
 | `eps_yoy_latest`  | 年間EPS前年比（%） | Track A: computed from income_stmt    |
 | `rating`          | レーティング       | Track A: recommendationKey            |

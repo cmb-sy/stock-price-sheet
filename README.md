@@ -22,9 +22,9 @@ Two tracks feed every processed tab:
   column and writes back yfinance-native values (no scraping, no AI):
   - *holdings*: `現在株価` (current price), `配当利回り` (dividend yield, a percent
     number), `配当金` (total annual dividend = per-share dividend × your `取得株数`).
-  - *watchlist*: a richer set — price, PER/PBR, dividend yield, market cap, EPS
-    (TTM), EPS YoY, rating, next earnings date, a kabutan URL built from the
-    ticker, and a write timestamp.
+  - *watchlist*: a richer set — price, PER/PBR, dividend yield, market cap
+    (normalised to 億円, FX-converted to JPY), EPS (TTM), EPS YoY, rating, next
+    earnings date, a kabutan URL built from the ticker, and a write timestamp.
 - **Track B — manual (Claude skills).** Two skills do the web research yfinance can't:
   - `.claude/skills/holdings-review` — for each holding, deep-researches over repeated
     loops, weighs it against **your own** `購入理由` / `短中長期` / `目標売却株価`, and

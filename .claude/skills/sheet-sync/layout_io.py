@@ -10,7 +10,7 @@ Subcommand:
 Only structural metadata is emitted: tab names, row/column counts, and header-row
 labels. Header labels are generic Japanese column names (銘柄名, 現在株価, ...) and
 contain no tickers, prices, or PII, so this output is safe to view. It still must
-not be piped into committed files or public Actions logs.
+not be piped into committed files or Actions logs.
 
 Credentials: set GOOGLE_APPLICATION_CREDENTIALS (path to the local SA key) or
 GCP_SA_KEY (JSON string), same as Track A.

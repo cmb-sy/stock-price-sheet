@@ -25,7 +25,7 @@ Japanese. Tab names like `監視-JP` / `監視-US` are sheet identifiers, kept a
   - `consider_reason` 購入検討理由 — the owner's reason for considering it (the
     thesis to test, as in holdings-review's 購入理由).
   - Track A figures: `current_price` 現在株価, `per` PER, `pbr` PBR,
-    `dividend_yield` 配当利回り, `market_cap` 時価総額, `eps_ttm` 現在EPS,
+    `dividend_yield` 配当利回り, `market_cap` 時価総額（億円・円換算済み）, `eps_ttm` 現在EPS,
     `eps_yoy_latest` 年間EPS前年比（%）, `rating` レーティング,
     `next_earnings` 次回決算日.
   - The existing Track B values (to update): `theme`, `industry_per`,
@@ -64,14 +64,19 @@ researched numbers. In Japanese, it should:
 - **Latest information only**: reference the most recent primary sources/reporting
   as of the time of research. Do not rely on memory or stale cache.
 - **No fabrication**: never invent an industry PER/PBR, a target, a theoretical
-  price, or an event. If a number cannot be confirmed, **leave it blank** (do not
-  send that role) and say so in the comment rather than guessing. Source URLs are
-  not stored in the sheet; summarize the basis/reasoning in the comment instead.
+  price, or an event. If a number cannot be confirmed, **do not guess a figure** —
+  instead write a **minimal reason word** in that cell (one or two words only, e.g.
+  "赤字" / "確認不可"; **never a sentence, no date** — the research date goes in the
+  comment), and elaborate/hedge in the comment. Never leave the cell empty; a reason
+  word is the fallback, a fabricated number never is. Source URLs are not stored in
+  the sheet; summarize the basis/reasoning in the comment instead.
 - `industry_per` / `industry_pbr` / `analyst_target` / `theoretical` are each a
-  **single number**, not a list. `theme` is a short text label.
-- **Public-repo discipline**: this skill's output is handled only transiently in the
-  local Claude session. Never leave tickers/prices/PII in committed files or public
-  logs (see the repo-root `CLAUDE.md`). Reporting prints counts only.
+  **single number** when confirmable, or a **minimal reason word** when not (never a
+  fabricated number). `theme` is a short text label.
+- **Secret-handling discipline**: this skill's output is handled only transiently in
+  the local Claude session. The repo is private, but never regress that boundary —
+  never leave tickers/prices/PII in committed files or run logs (see the repo-root
+  `CLAUDE.md`). Reporting prints counts only.
 
 ## Authentication
 
@@ -105,8 +110,9 @@ different angle, reconcile, repeat until the picture is stable.
 
 ### 3. Write
 
-Pass results as JSON via stdin, using the `tab` and `row` from step 1. Send only the
-roles you confirmed; omit any you could not confirm (leave them blank).
+Pass results as JSON via stdin, using the `tab` and `row` from step 1. For a role you
+could not confirm, send a minimal reason word instead of a number (never omit it,
+never fabricate a figure).
 
 ```bash
 echo '{"writes":[
@@ -120,11 +126,12 @@ echo '{"writes":[
 ### 4. Report
 
 Report only the number of stocks commented on (no tickers/prices). If anything
-could not be confirmed and was therefore left blank/hedged, state that.
+could not be confirmed and was therefore filled with a reason text instead of a
+number, state that.
 
 ## What not to do
 
 - Writing any role other than the six Track B roles (`research_io.py write` refuses it).
 - One-shotting the research, or restating figures instead of forming a judgment.
 - Fabricating a theme, industry PER/PBR, target, theoretical price, or event you
-  could not confirm — leave it blank instead.
+  could not confirm — write a minimal reason word in that cell instead.

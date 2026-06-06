@@ -11,7 +11,7 @@ Subcommands:
               column is writable; nothing else is touched.
 
 This output is consumed by Claude locally during a manual run. It is never
-committed and must not be piped into the repo or into public Actions logs.
+committed and must not be piped into the repo or into Actions logs.
 
 Columns are resolved by header name (see sheet.py), so a column move in the sheet
 does not misdirect a read or write.

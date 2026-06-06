@@ -3,16 +3,17 @@
 write them back to the Google Sheet. Designed to run on a GitHub Actions schedule,
 but also runnable locally for testing.
 
-Privacy: this repo is PUBLIC and Actions logs are world-readable. Never print
-ticker symbols, names, or prices — only tab names (generic identifiers), row
-numbers, and aggregate counts. See CLAUDE.md.
+Privacy: treat Actions logs as potentially exposed (the repo is private, but this
+is defense-in-depth). Never print ticker symbols, names, or prices — only tab names
+(generic identifiers), row numbers, and aggregate counts. See CLAUDE.md.
 
 Two tab types (config.yaml `tabs[].type`):
   holdings  -> 現在株価 = currentPrice, 配当利回り = dividendYield (a percent
                number, e.g. 2.34), 配当金 = dividendRate * 取得株数.
-  watchlist -> the yfinance metric set (price, PER/PBR, dividend yield, market cap,
-               EPS TTM, EPS YoY, rating), the next earnings date, a kabutan URL
-               derived from the ticker, and a write timestamp.
+  watchlist -> the yfinance metric set (price, PER/PBR, dividend yield, EPS TTM,
+               EPS YoY, rating), market cap normalised to 億円 (JPY, FX-converted),
+               the next earnings date, a kabutan URL derived from the ticker, and a
+               write timestamp.
 
 Track A writes only the roles it owns; the manual columns and the Track B columns
 (theme, industry PER/PBR, analyst/theoretical price, AI comments) are never touched.
@@ -46,16 +47,17 @@ WATCHLIST_INFO_FIELDS = {
     "per": "trailingPE",
     "pbr": "priceToBook",
     "dividend_yield": "dividendYield",
-    "market_cap": "marketCap",
     "eps_ttm": "trailingEps",
     "rating": "recommendationKey",
 }
 # Derived (not raw Ticker.info): EPS YoY from income_stmt annual EPS, next earnings
-# date from ticker.calendar, and the kabutan URL built from the ticker string.
+# date from ticker.calendar, the kabutan URL built from the ticker string, and the
+# market cap normalised to 億円 (JPY, FX-converted; see _market_cap_oku).
 WATCHLIST_DERIVED_ROLES = (
     "eps_yoy_latest",
     "next_earnings",
     "kabutan_url",
+    "market_cap",
 )
 # Every role Track A may write into a watchlist tab (used to gate by what the tab
 # actually has a column for).
@@ -154,6 +156,46 @@ def _kabutan_url(symbol: str) -> str:
     return f"https://us.kabutan.jp/stocks/{s.upper()}"
 
 
+# Per-run cache of {currency -> JPY rate}; one network hit per foreign currency.
+_FX_CACHE: dict[str, float | None] = {}
+
+
+def _fx_to_jpy(currency: object) -> float | None:
+    """Spot rate to convert `currency` into JPY (1.0 for JPY/unknown-as-JPY).
+
+    Returns None if a foreign rate cannot be fetched, so callers degrade to 'N/A'
+    rather than reporting a wrong number. Cached per run."""
+    cur = str(currency or "").upper()
+    if cur in ("", "JPY"):
+        return 1.0
+    if cur in _FX_CACHE:
+        return _FX_CACHE[cur]
+    rate: float | None = None
+    try:
+        hist = yf.Ticker(f"{cur}JPY=X").history(period="5d")
+        if hist is not None and not hist.empty:
+            rate = float(hist["Close"].dropna().iloc[-1])
+    except Exception:
+        rate = None
+    _FX_CACHE[cur] = rate
+    return rate
+
+
+def _market_cap_oku(info: dict) -> object:
+    """Market cap expressed in 億円 (JPY hundred-millions), as an integer.
+
+    yfinance reports marketCap in the listing currency (USD for US tickers); it is
+    FX-converted to JPY and divided by 1e8. 'N/A' when the cap is missing or the FX
+    rate is unavailable (never a fabricated figure)."""
+    cap = _to_float(info.get("marketCap"))
+    if cap is None:
+        return "N/A"
+    rate = _fx_to_jpy(info.get("currency"))
+    if rate is None:
+        return "N/A"
+    return round(cap * rate / 1e8)
+
+
 def _resolve_price(ticker: "yf.Ticker", info: dict, hist) -> float | None:
     price = info.get("currentPrice")
     if not price:
@@ -241,6 +283,9 @@ def fetch_watchlist(symbol: str, roles: set[str]) -> dict | None:
 
         if "kabutan_url" in roles:
             out["kabutan_url"] = _kabutan_url(symbol)
+
+        if "market_cap" in roles:
+            out["market_cap"] = _market_cap_oku(info)
 
         return out
     except Exception:  # noqa: BLE001 - logged by row, never by symbol

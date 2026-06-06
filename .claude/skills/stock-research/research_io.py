@@ -5,8 +5,9 @@ MANUAL use only.
 Subcommands:
   read-rows   Print JSON of every watched stock (a row with a ticker) across all
               watchlist tabs, with the owner's 購入検討株価 and 購入検討理由, the
-              Track A figures (price, PER/PBR, dividend yield, market cap, EPS, EPS
-              YoY, rating, next earnings date), and the existing Track B values, so
+              Track A figures (price, PER/PBR, dividend yield, market cap in 億円,
+              EPS, EPS YoY, rating, next earnings date), and the existing Track B
+              values, so
               the skill can decide what to (re)write.
   write       Read {"writes": [{"tab","row","fields":{role:value,...}}, ...]} from
               stdin and batch-write per tab. Only the Track B roles below are
@@ -18,7 +19,7 @@ Track B roles this skill may write:
   analysis_comment (AI分析コメント)
 
 This output is consumed by Claude locally during a manual run. It is never
-committed and must not be piped into the repo or into public Actions logs.
+committed and must not be piped into the repo or into Actions logs.
 
 Columns are resolved by header name (see sheet.py), so a column move in the sheet
 does not misdirect a read or write.

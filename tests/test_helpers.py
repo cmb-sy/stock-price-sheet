@@ -5,8 +5,15 @@ No external test framework required (stdlib unittest).
 """
 import unittest
 
+import update_prices
 from sheet import index_to_col, resolve_columns
-from update_prices import _dividend_total, _round, _to_float, _yoy
+from update_prices import (
+    _dividend_total,
+    _market_cap_oku,
+    _round,
+    _to_float,
+    _yoy,
+)
 
 
 class TestIndexToCol(unittest.TestCase):
@@ -116,6 +123,41 @@ class TestYoY(unittest.TestCase):
         self.assertEqual(_yoy(None, 100), "N/A")
         self.assertEqual(_yoy(100, None), "N/A")
         self.assertEqual(_yoy(100, 0), "N/A")
+
+
+class TestMarketCapOku(unittest.TestCase):
+    def setUp(self):
+        # Seed the FX cache so tests never hit the network.
+        update_prices._FX_CACHE.clear()
+        update_prices._FX_CACHE["USD"] = 160.0
+
+    def tearDown(self):
+        update_prices._FX_CACHE.clear()
+
+    def test_jpy_passthrough_to_oku(self):
+        # 3,780,621,631,488 JPY / 1e8 = 37,806 億円 (rounded).
+        self.assertEqual(
+            _market_cap_oku({"marketCap": 3780621631488, "currency": "JPY"}), 37806
+        )
+
+    def test_usd_converted_then_oku(self):
+        # 1e9 USD * 160 JPY / 1e8 = 1,600 億円.
+        self.assertEqual(
+            _market_cap_oku({"marketCap": 1_000_000_000, "currency": "USD"}), 1600
+        )
+
+    def test_missing_currency_treated_as_jpy(self):
+        self.assertEqual(_market_cap_oku({"marketCap": 1_000_000_000}), 10)
+
+    def test_missing_cap_is_na(self):
+        self.assertEqual(_market_cap_oku({"currency": "USD"}), "N/A")
+        self.assertEqual(_market_cap_oku({"marketCap": None, "currency": "JPY"}), "N/A")
+
+    def test_unavailable_fx_is_na_not_fabricated(self):
+        update_prices._FX_CACHE["EUR"] = None  # simulate a failed rate fetch
+        self.assertEqual(
+            _market_cap_oku({"marketCap": 1_000_000_000, "currency": "EUR"}), "N/A"
+        )
 
 
 if __name__ == "__main__":

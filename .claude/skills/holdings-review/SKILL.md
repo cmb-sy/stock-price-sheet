@@ -57,9 +57,10 @@ A short letter to the owner, in Japanese, that:
   the sheet; summarize the basis/reasoning in the comment instead.
 - **Personalized, not generic**: the comment must engage with the owner's specific
   購入理由 / 短中長期 / 目標売却株価, not read like a stock-screener blurb.
-- **Public-repo discipline**: this skill's output is handled only transiently in the
-  local Claude session. Never leave tickers/prices/PII in committed files or public
-  logs (see the repo-root `CLAUDE.md`). Reporting prints counts only.
+- **Secret-handling discipline**: this skill's output is handled only transiently in
+  the local Claude session. The repo is private, but never regress that boundary —
+  never leave tickers/prices/PII in committed files or run logs (see the repo-root
+  `CLAUDE.md`). Reporting prints counts only.
 
 ## Authentication
 
