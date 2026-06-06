@@ -28,14 +28,14 @@ var MANUAL_HEADERS = {
 
 function doGet() {
   return HtmlService.createHtmlOutputFromFile('index')
-    .setTitle('Stock Sheet')
+    .setTitle('保有・監視シート')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
 
 function _sheet(tabName) {
-  if (TABS.indexOf(tabName) < 0) throw new Error('unknown tab');
+  if (TABS.indexOf(tabName) < 0) throw new Error('不明なタブです');
   var sh = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(tabName);
-  if (!sh) throw new Error('tab not found');
+  if (!sh) throw new Error('タブが見つかりません');
   return sh;
 }
 
@@ -80,16 +80,16 @@ function saveRow(tabName, rowNum, fields) {
   var sh = _sheet(tabName);
   var headerRow = sh.getRange(HEADER_ROW, 1, 1, sh.getLastColumn()).getValues()[0];
   rowNum = parseInt(rowNum, 10);
-  if (!(rowNum > HEADER_ROW)) throw new Error('invalid row');
+  if (!(rowNum > HEADER_ROW)) throw new Error('無効な行番号です');
 
   var written = 0;
   for (var label in fields) {
     if (!Object.prototype.hasOwnProperty.call(fields, label)) continue;
     if (manual.indexOf(label) < 0) {
-      throw new Error('refusing to write a non-manual (read-only) column');
+      throw new Error('編集不可（自動更新）列のため書き込みできません');
     }
     var col = headerRow.indexOf(label);
-    if (col < 0) throw new Error('header not found in tab');
+    if (col < 0) throw new Error('ヘッダが見つかりません: ' + label);
     sh.getRange(rowNum, col + 1).setValue(_coerce(fields[label]));
     written++;
   }
