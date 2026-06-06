@@ -10,6 +10,13 @@
  * It exposes the sheet for VIEWING (all columns) and for EDITING the manual columns
  * only. Track A (yfinance) and Track B (Claude skills) columns are read-only and the
  * server refuses to write them.
+ *
+ * Access is restricted to an allowlist of accounts. The allowlist (emails) lives in a
+ * Script Property named ALLOWED_EMAILS (comma-separated), set in the Apps Script editor
+ * — NEVER hard-coded here, so this committed file stays free of personal emails (PII).
+ * With executeAs USER_ACCESSING each visitor runs as themselves, so getActiveUser()
+ * reliably yields their email for the allowlist check and the sheet must be shared with
+ * each allowed account.
  */
 
 // Same ID as config.yaml's spreadsheet_id (safe to publish; access is granted by
@@ -26,7 +33,35 @@ var MANUAL_HEADERS = {
   '監視-US': ['銘柄名', '購入検討株価', '購入検討理由', 'Ticker']
 };
 
+// Allowlist (emails) is stored in the ALLOWED_EMAILS Script Property, comma-separated,
+// so personal emails never live in this committed file.
+function _allowedEmails() {
+  var raw = PropertiesService.getScriptProperties().getProperty('ALLOWED_EMAILS') || '';
+  return raw.split(',').map(function (s) { return s.trim().toLowerCase(); }).filter(String);
+}
+
+function _isAllowed() {
+  var me = (Session.getActiveUser().getEmail() || '').toLowerCase();
+  return !!me && _allowedEmails().indexOf(me) >= 0;
+}
+
+// Throw on every data call from a non-allowlisted user, so no data leaks even if the
+// page HTML somehow loads.
+function _guard() {
+  if (!_isAllowed()) throw new Error('アクセス権がありません');
+}
+
 function doGet() {
+  if (!_isAllowed()) {
+    return HtmlService.createHtmlOutput(
+      '<div style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;' +
+      'padding:48px 24px;text-align:center;color:#374151">' +
+      '<div style="font-size:32px">🔒</div>' +
+      '<h2 style="margin:12px 0 4px">アクセス権がありません</h2>' +
+      '<p style="color:#6b7280;font-size:14px">このアプリは許可されたアカウントのみ利用できます。</p>' +
+      '</div>'
+    ).setTitle('アクセス権なし');
+  }
   return HtmlService.createHtmlOutputFromFile('index')
     .setTitle('保有・監視シート')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
@@ -40,6 +75,7 @@ function _sheet(tabName) {
 }
 
 function getTabs() {
+  _guard();
   return TABS;
 }
 
@@ -49,6 +85,7 @@ function getTabs() {
  * reads nicely. Rows without a Ticker are skipped, matching Track A/B behavior.
  */
 function getRows(tabName) {
+  _guard();
   var sh = _sheet(tabName);
   var values = sh.getDataRange().getDisplayValues();
   if (values.length < HEADER_ROW) return { headers: [], rows: [] };
@@ -76,6 +113,7 @@ function getRows(tabName) {
  * count of cells written.
  */
 function saveRow(tabName, rowNum, fields) {
+  _guard();
   var manual = MANUAL_HEADERS[tabName] || [];
   var sh = _sheet(tabName);
   var headerRow = sh.getRange(HEADER_ROW, 1, 1, sh.getLastColumn()).getValues()[0];
