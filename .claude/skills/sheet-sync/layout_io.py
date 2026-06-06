@@ -40,9 +40,8 @@ def read_layout(cfg: dict, ss) -> None:
             }
         )
     config_view = {
-        "holdings_tab": cfg.get("holdings_tab"),
         "header_rows": cfg.get("header_rows"),
-        "columns": cfg.get("columns"),
+        "tabs": cfg.get("tabs"),
     }
     print(
         json.dumps({"sheet": tabs, "config": config_view}, ensure_ascii=False, indent=2)

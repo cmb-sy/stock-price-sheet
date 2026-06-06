@@ -11,14 +11,15 @@ names, headers, and data — stays in Japanese; the tab-name literals such as
 
 - Never include the owner's PII (name, email, address, phone number, etc.) in any
   code, config, commit message, README, documentation, or log.
-- Never put the tickers the owner actually holds anywhere in the repo. The real
-  tickers exist **only in the private Google Sheet and are never committed**.
+- Never put the tickers the owner actually holds **or watches** anywhere in the
+  repo. The real tickers exist **only in the private Google Sheet and are never
+  committed**.
 - Ticker examples in docs or code must be generic format-illustration examples
-  (`7203.T`, `AAPL`, etc.). Do not use the owner's real holdings as examples.
-- Do not write the owner's real held tickers as a literal in any file in the repo
-  (code, config, README, docs, anything under `.claude/skills/`, sample or seed
-  scripts) — not even as an "example". Real tickers live **only in the sheet's
-  Ticker column**.
+  (`7203.T`, `AAPL`, etc.). Do not use the owner's real holdings/watchlist as examples.
+- Do not write the owner's real held/watched tickers as a literal in any file in the
+  repo (code, config, README, docs, anything under `.claude/skills/`, sample or seed
+  scripts) — not even as an "example". Real tickers live **only in each tab's Ticker
+  column**.
 - If a setup/seed script that contains tickers is needed, keep and run it outside
   the repo (e.g. `/tmp`) and never commit it.
 
@@ -41,69 +42,85 @@ names, headers, and data — stays in Japanese; the tab-name literals such as
 
 ## Data layout (the sheet)
 
-The sheet has two tabs. The system processes **`保有銘柄`** (holdings); `売買履歴`
-(trade history) is **not** read or written by any code path here.
+The sheet has two **tab types**, both listed in `config.yaml`'s `tabs`:
 
-### 保有銘柄 (holdings)
+- `type: holdings` — stocks the owner actually holds. Currently the **`保有銘柄`** tab.
+- `type: watchlist` — stocks the owner is watching (not yet held). Currently
+  **`監視-JP`** and **`監視-US`** (same layout, shared via a YAML anchor).
 
-Columns are mapped by **header name** (the row-1 label), not by position — see the
-`columns` map in `config.yaml`. Inserting or moving a column does not break the
-mapping; only renaming/removing a header does. The headers and their owners:
+`売買履歴` (trade history) is **not** read or written by any code path here.
+
+Columns are mapped by **header name** (the row-1 label), not by position — each
+tab's `columns` map is {role → exact Japanese header label}, resolved at runtime by
+`sheet.py` `resolve_columns`. Inserting or moving a column does not break the
+mapping; only renaming/removing a header does (then the role fails to resolve;
+Track A aborts on a missing `ticker`, and the `sheet-sync` skill reconciles labels).
+**Do not reintroduce positional (A/B/C) column constants.**
+
+### holdings tab (保有銘柄)
 
 | Header       | Owner               | Source / meaning                                    |
 |--------------|---------------------|-----------------------------------------------------|
 | 銘柄名       | manual              | stock name (Japanese)                               |
 | 取得日       | manual              | acquisition date                                    |
-| 短中長期     | manual              | holding horizon (short/mid/long) — AI-comment input |
-| 目標売却株価 | manual              | target sell price — AI-comment input                |
+| 短中長期     | manual              | holding horizon — holdings-review input             |
+| 目標売却株価 | manual              | target sell price — holdings-review input           |
 | 現在株価     | **Track A**         | yfinance `currentPrice`                             |
 | 取得株価     | manual              | acquisition price                                   |
 | 取得株数     | manual              | shares held (used to compute 配当金)                |
 | 配当利回り   | **Track A**         | yfinance `dividendYield` (a percent number, e.g. 2.34) |
 | 配当金       | **Track A**         | `dividendRate` × 取得株数 = total annual dividend   |
-| 購入理由     | manual              | purchase reason (the thesis) — AI-comment input     |
+| 購入理由     | manual              | purchase reason (the thesis) — holdings-review input |
 | AIコメント   | **holdings-review** | Claude's personalized per-holding comment           |
-| Ticker       | manual              | yfinance format (`7203.T`, `AAPL`); rows without it are skipped |
+| Ticker       | manual              | yfinance format; rows without it are skipped        |
 
-- **Track A** (`update_prices.py`, GitHub Actions, automatic): writes only
-  `現在株価`, `配当利回り`, and `配当金`, all derived from yfinance natively (no
-  scraping, no AI). 配当金 = per-share `dividendRate` × the manual 取得株数 (blank when
-  取得株数 is empty). Targets every row that has a ticker.
-- **holdings-review** (`.claude/skills/holdings-review`, run manually by Claude):
-  for each holding, deep-researches the market and the stock over **repeated loops**,
-  judges it against the owner's own 購入理由 / 短中長期 / 目標売却株価, and writes a
-  personalized advisory comment to **`AIコメント`** (the only column it writes). It
-  does **not** consult 売買履歴.
-- Manual columns (銘柄名, 取得日, 短中長期, 目標売却株価, 取得株価, 取得株数, 購入理由,
-  Ticker) are human-edited; neither code path overwrites them.
+Track A writes only `現在株価` / `配当利回り` / `配当金` here. Track B = the
+**holdings-review** skill writes only `AIコメント`.
+
+### watchlist tabs (監視-JP / 監視-US)
+
+A richer layout (the owner is evaluating whether to buy). Roles → headers:
+
+| Owner       | Headers                                                              |
+|-------------|---------------------------------------------------------------------|
+| manual      | 銘柄名, 購入検討株価, メモ, Ticker                                   |
+| **Track A** | 現在株価, PER, PBR, 配当利回り, 時価総額, 3ヶ月最大出来高, 52週高値, 52週安値, EPS(TTM), EPS実績(当期/1期前/2期前/3期前), EPS前年比(直近)%, EPS前年比(前期)%, 合意目標(平均/高/安), アナリスト数, レーティング, 更新時刻 |
+| **Track B** | 業界PER, 業界PBR, 平均目標株価, 理論株価, AI分析コメント            |
+
+Track A derives EPS history from `income_stmt`, EPS YoY from it, 3ヶ月最大出来高 from
+`history("3mo")`, and the rest from `Ticker.info`. Industry PER/PBR, the
+target/theoretical prices, and the verdict are **not** available from yfinance, so
+Track A never touches the Track B columns. Track B = the **stock-research** skill.
+
+### Shared rules
+
+- Both tracks target **every row that has a ticker**; no-ticker rows are skipped.
+- Manual columns are human-edited; neither code path overwrites them.
 - Numeric columns already have display formats (thousands separators, `%`, etc.).
   Write raw numbers and percent values as numbers (e.g. `2.34` for 2.34%); let the
   cell format handle grouping and the `%` sign.
 
-### Column mapping discipline (header-name based)
+## Track B (Claude skills) discipline
 
-The mapping lives in `config.yaml` `columns` as {role → exact Japanese header label}
-and is resolved at runtime by `sheet.py` `resolve_columns`. If the sheet's headers
-are renamed/removed, a role will fail to resolve (Track A aborts on a missing
-`ticker`; the `sheet-sync` skill reconciles the labels). Do not reintroduce
-positional (A/B/C) column constants.
-
-## holdings-review (AI comment) discipline
+Two manual, owner-only skills do the web research Track A cannot:
+**holdings-review** (holdings tab → `AIコメント`) and **stock-research** (watchlist
+tabs → 業界PER/業界PBR/平均目標株価/理論株価/AI分析コメント). Both follow:
 
 - When researching, always reference **the latest information as of the time of
   research**. Do not rely on memory or stale cache; confirm the latest primary
   sources/reporting.
-- **Loop, don't one-shot**: research each holding repeatedly from multiple angles
+- **Loop, don't one-shot**: research each stock repeatedly from multiple angles
   (macro/market, sector, company fundamentals/catalysts, valuation) before forming a
   judgment.
-- **Never fabricate** prices, figures, or events. If something cannot be confirmed,
-  hedge it in the comment text rather than guessing.
-- The comment is a **personalized verdict addressed to the owner**: it must engage
-  with their specific 購入理由 / 短中長期 / 目標売却株価 (is the thesis still intact,
-  given the latest facts and their horizon?), use the figures as evidence, name the
-  key risks and what to watch, and close with a stance. There is **no fetch-date
-  column** — record the research date inside the comment text.
-- The skill's output is handled only transiently in the local Claude session. Never
+- **Never fabricate** prices, figures, targets, or events. If something cannot be
+  confirmed, leave that value blank and hedge it in the comment text rather than
+  guessing.
+- The comment is an **opinionated verdict**, not a restatement of the figures —
+  use the figures as evidence, name the key risks and what to watch, close with a
+  stance. holdings-review engages the owner's 購入理由 / 短中長期 / 目標売却株価;
+  stock-research weighs the watch candidate against the owner's 購入検討株価. There is
+  **no fetch-date column** — record the research date inside the comment text.
+- The skills' output is handled only transiently in the local Claude session. Never
   leave tickers, prices, or PII **in committed files or public logs (Actions, etc.)**
   (handling them transiently for research is fine).
 

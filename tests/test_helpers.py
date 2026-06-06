@@ -6,7 +6,7 @@ No external test framework required (stdlib unittest).
 import unittest
 
 from sheet import index_to_col, resolve_columns
-from update_prices import _dividend_total, _round, _to_float
+from update_prices import _dividend_total, _round, _to_float, _yoy
 
 
 class TestIndexToCol(unittest.TestCase):
@@ -101,6 +101,21 @@ class TestDividendTotal(unittest.TestCase):
     def test_missing_rate_is_na(self):
         self.assertEqual(_dividend_total(None, 100), "N/A")
         self.assertEqual(_dividend_total("", 100), "N/A")
+
+
+class TestYoY(unittest.TestCase):
+    def test_growth_and_decline(self):
+        self.assertEqual(_yoy(110, 100), 10.0)
+        self.assertEqual(_yoy(90, 100), -10.0)
+
+    def test_uses_abs_of_old_base(self):
+        # recovery from a negative prior year: (5 - (-10)) / 10 * 100 = 150.0
+        self.assertEqual(_yoy(5, -10), 150.0)
+
+    def test_missing_or_zero_base_is_na(self):
+        self.assertEqual(_yoy(None, 100), "N/A")
+        self.assertEqual(_yoy(100, None), "N/A")
+        self.assertEqual(_yoy(100, 0), "N/A")
 
 
 if __name__ == "__main__":

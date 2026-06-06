@@ -6,36 +6,79 @@ spreadsheet_id: "1JkQ25PnxflO86axqflNw1HgAHAMVN4dyiQkj1mmFYgE"
 timezone: "Asia/Tokyo"
 header_rows: 1
 
-# The holdings tab Track A processes (the literal Japanese tab name in the sheet).
-holdings_tab: "保有銘柄"
-
 # ---------------------------------------------------------------------------
-# Column mapping is by HEADER NAME (row-1 label), not by position. Each value is
-# the exact Japanese header label; the code resolves it to a column at runtime,
-# so inserting/moving a column does not break the mapping.
+# Two tab types share one engine. Columns are resolved by HEADER NAME (the row-1
+# label), never by position, so inserting/moving a column never misdirects a
+# write. Each tab maps a logical role -> the exact Japanese header label in that
+# tab's row 1.
 #
-# 保有銘柄 columns and owners:
-#   銘柄名        manual            stock name
-#   取得日        manual            acquisition date
-#   短中長期      manual            horizon (AI-comment input)
-#   目標売却株価   manual            target sell price (AI-comment input)
-#   現在株価      Track A           yfinance currentPrice
-#   取得株価      manual            acquisition price
-#   取得株数      manual            shares held (used to compute 配当金)
-#   配当利回り     Track A           yfinance dividendYield (a percent number, e.g. 2.34)
-#   配当金        Track A           dividendRate * 取得株数 = annual dividend received
-#   購入理由      manual            purchase reason (AI-comment input)
-#   AIコメント     holdings-review   Claude's personalized per-holding comment
-#   Ticker        manual            yfinance format (7203.T, AAPL); rows without it are skipped
+#   type: holdings  -> tab the owner actually holds. Track A writes
+#                      現在株価/配当利回り/配当金; Track B = the holdings-review
+#                      skill (a personal comment weighing 購入理由・短中長期・
+#                      目標売却株価 against the latest facts).
+#   type: watchlist -> stocks the owner is watching (not yet held). Track A writes
+#                      the rich yfinance metric set below; Track B = the
+#                      stock-research skill (業界PER/業界PBR・平均目標株価・
+#                      理論株価・AI分析コメント).
+#
+# A row without a Ticker is skipped by both tracks.
 # ---------------------------------------------------------------------------
-columns:
-  ticker: "Ticker"             # manual; rows without a ticker are skipped
-  name: "銘柄名"               # manual; never written by either track
-  shares: "取得株数"           # manual; multiplied by dividendRate for 配当金
-  current_price: "現在株価"    # Track A: yfinance currentPrice
-  dividend_yield: "配当利回り" # Track A: yfinance dividendYield (percent number)
-  dividend_amount: "配当金"    # Track A: dividendRate * shares (total annual dividend)
-  horizon: "短中長期"          # manual; AI-comment input
-  target_sell: "目標売却株価"  # manual; AI-comment input
-  purchase_reason: "購入理由"  # manual; AI-comment input
-  ai_comment: "AIコメント"     # holdings-review skill writes this (only)
+
+# Watchlist column map, shared by 監視-JP and 監視-US (identical layout). The
+# YAML anchor below is referenced by both tabs so the two stay in lockstep.
+# Owners:  A = Track A (yfinance native/derived) · B = Track B (web research) ·
+#          M = manual (never written by either track)
+_watchlist_columns: &watchlist_columns
+  ticker: "Ticker"                 # M  yfinance format (7203.T, AAPL); no-ticker rows skipped
+  name: "銘柄名"                   # M  stock name (Japanese)
+  my_target: "購入検討株価"        # M  price the owner is considering buying at
+  current_price: "現在株価"        # A  currentPrice
+  per: "PER"                       # A  trailingPE
+  industry_per: "業界PER"          # B  industry-average PER (not in yfinance)
+  pbr: "PBR"                       # A  priceToBook
+  industry_pbr: "業界PBR"          # B  industry-average PBR (not in yfinance)
+  dividend_yield: "配当利回り"     # A  dividendYield (a percent number, e.g. 2.34)
+  market_cap: "時価総額"           # A  marketCap
+  vol_3mo_max: "3ヶ月最大出来高"   # A  history("3mo")["Volume"].max()
+  wk52_high: "52週高値"            # A  fiftyTwoWeekHigh
+  wk52_low: "52週安値"             # A  fiftyTwoWeekLow
+  eps_ttm: "EPS(TTM)"              # A  trailingEps
+  eps_fy0: "EPS実績(当期)"         # A  income_stmt Diluted/Basic EPS, newest
+  eps_fy1: "EPS実績(1期前)"        # A
+  eps_fy2: "EPS実績(2期前)"        # A
+  eps_fy3: "EPS実績(3期前)"        # A
+  eps_yoy_latest: "EPS前年比(直近)%"  # A  (fy0 - fy1) / |fy1| * 100
+  eps_yoy_prev: "EPS前年比(前期)%"    # A  (fy1 - fy2) / |fy2| * 100
+  target_mean: "合意目標(平均)"    # A  targetMeanPrice
+  target_high: "合意目標(高)"      # A  targetHighPrice
+  target_low: "合意目標(安)"       # A  targetLowPrice
+  num_analysts: "アナリスト数"     # A  numberOfAnalystOpinions
+  rating: "レーティング"           # A  recommendationKey
+  avg_target: "平均目標株価"       # B  analyst/own average target (single value)
+  theoretical: "理論株価"          # B  theoretical fair price (single value)
+  analysis_comment: "AI分析コメント"  # B  Claude-synthesized verdict (incl. research date)
+  memo: "メモ"                     # M  free memo
+  updated: "更新時刻"              # A  Track A write timestamp
+
+tabs:
+  - tab: "保有銘柄"
+    type: holdings
+    columns:
+      ticker: "Ticker"             # M  rows without a ticker are skipped
+      name: "銘柄名"               # M  never written by either track
+      shares: "取得株数"           # M  multiplied by dividendRate for 配当金
+      current_price: "現在株価"    # A  yfinance currentPrice
+      dividend_yield: "配当利回り" # A  yfinance dividendYield (percent number)
+      dividend_amount: "配当金"    # A  dividendRate * shares (total annual dividend)
+      horizon: "短中長期"          # M  holdings-review input
+      target_sell: "目標売却株価"  # M  holdings-review input
+      purchase_reason: "購入理由"  # M  holdings-review input
+      ai_comment: "AIコメント"     # B  holdings-review writes this (only)
+
+  - tab: "監視-JP"
+    type: watchlist
+    columns: *watchlist_columns
+
+  - tab: "監視-US"
+    type: watchlist
+    columns: *watchlist_columns

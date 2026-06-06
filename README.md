@@ -8,41 +8,49 @@ GitHub's runners do the automatic part.
 
 ## How it works
 
-The sheet has two tabs; this repo works on the **`保有銘柄`** (holdings) tab. The
-`売買履歴` (trade history) tab is left untouched.
+The repo processes two kinds of tab, both listed in `config.yaml`'s `tabs`:
 
-Two tracks feed the holdings tab:
+- **holdings** (`保有銘柄`) — stocks you actually hold.
+- **watchlist** (`監視-JP`, `監視-US`) — stocks you are evaluating but don't hold yet.
+
+The `売買履歴` (trade history) tab is left untouched.
+
+Two tracks feed every processed tab:
 
 - **Track A — automatic (`update_prices.py`).** A scheduled workflow
-  (`.github/workflows/update-prices.yml`) reads the tickers from the `Ticker` column
-  and writes back three yfinance-native values: `現在株価` (current price),
-  `配当利回り` (dividend yield, a percent number), and `配当金` (total annual dividend
-  = per-share dividend × your `取得株数`). It fetches only what yfinance provides — no
-  scraping, no AI.
-- **Track B — manual (`.claude/skills/holdings-review`).** A Claude skill that, for
-  each holding, deep-researches the market and the stock over repeated loops, weighs
-  it against **your own** purchase reason (`購入理由`), horizon (`短中長期`), and target
-  sell price (`目標売却株価`), and writes a personalized comment into the `AIコメント`
-  column — telling you whether your original thesis still holds and what to watch.
+  (`.github/workflows/update-prices.yml`) reads the tickers from each tab's `Ticker`
+  column and writes back yfinance-native values (no scraping, no AI):
+  - *holdings*: `現在株価` (current price), `配当利回り` (dividend yield, a percent
+    number), `配当金` (total annual dividend = per-share dividend × your `取得株数`).
+  - *watchlist*: a richer set — price, PER/PBR, dividend yield, market cap, 3-month
+    max volume, 52-week high/low, EPS (TTM), EPS history + YoY, consensus targets,
+    analyst count, rating, and a write timestamp.
+- **Track B — manual (Claude skills).** Two skills do the web research yfinance can't:
+  - `.claude/skills/holdings-review` — for each holding, deep-researches over repeated
+    loops, weighs it against **your own** `購入理由` / `短中長期` / `目標売却株価`, and
+    writes a personalized verdict into `AIコメント`.
+  - `.claude/skills/stock-research` — for each watched stock, researches the values
+    yfinance can't give (industry PER/PBR, an average target price, a theoretical
+    price) and writes those plus a synthesized verdict (`AI分析コメント`).
 
-Columns are mapped by **header name**, not by position (see `config.yaml`'s `columns`
-map), so adding or moving a column in the sheet does not break anything; only renaming
-or removing a header does.
+Columns are mapped by **header name**, not by position (see each tab's `columns` map
+in `config.yaml`), so adding or moving a column in the sheet does not break anything;
+only renaming or removing a header does.
 
 ## Setup
 
 ### 1. Prepare the Google Sheet
 
-- Have a tab named exactly `保有銘柄`. Row 1 holds the Japanese header labels listed
-  in `config.yaml` (銘柄名, 取得日, 短中長期, 目標売却株価, 現在株価, 取得株価, 取得株数,
-  配当利回り, 配当金, 購入理由, AIコメント, Ticker). The order does not matter — the
-  code finds each column by its label.
-- Put your tickers in the `Ticker` column, in **yfinance format**:
+- Have the tabs your `config.yaml` lists. Out of the box: `保有銘柄` (holdings),
+  `監視-JP` and `監視-US` (watchlists). Row 1 of each holds the Japanese header labels
+  from that tab's `columns` map. The order does not matter — the code finds each
+  column by its label.
+- Put your tickers in each tab's `Ticker` column, in **yfinance format**:
   - Japan (Tokyo): `7203.T`, `9984.T`, ...
   - US: `AAPL`, `MSFT`, ...
-- Fill the manual columns yourself (銘柄名, 取得日, 短中長期, 目標売却株価, 取得株価,
-  取得株数, 購入理由). Track A fills 現在株価 / 配当利回り / 配当金; the holdings-review
-  skill fills AIコメント. Rows with no ticker are skipped.
+- Fill the manual columns yourself. Track A fills the price/metric columns; the
+  holdings-review skill fills `AIコメント` (holdings) and stock-research fills the
+  Track B columns (watchlists). Rows with no ticker are skipped.
 
 ### 2. Create a Google service account
 
@@ -69,8 +77,9 @@ or removing a header does.
 
 ```bash
 cp config.example.yaml config.yaml
-# edit config.yaml: set your spreadsheet_id. holdings_tab and the columns map
-# (role -> Japanese header label) are pre-filled for the 保有銘柄 layout.
+# edit config.yaml: set your spreadsheet_id. The `tabs` list (each tab's name,
+# type, and role -> Japanese header label map) is pre-filled for the
+# 保有銘柄 / 監視-JP / 監視-US layout.
 git add config.yaml && git commit -m "configure sheet mapping" && git push
 ```
 
@@ -95,14 +104,20 @@ python -m unittest discover -s tests
 
 ## Track B (manual research with Claude)
 
-Track B is a Claude Code skill at `.claude/skills/holdings-review/`. Open this repo in
-Claude Code and run the skill; it reads each holding (your purchase reason, horizon,
-target sell price, plus the Track A figures), does looped live web research with the
-latest sources, and writes a personalized advisory comment into `AIコメント` — never
-fabricating values (anything unconfirmed is hedged in the text). See that skill's
-`SKILL.md` and the project `CLAUDE.md` for the research discipline.
+Track B is two Claude Code skills. Open this repo in Claude Code and run the one you
+need; each does looped live web research with the latest sources and never fabricates
+values (anything unconfirmed is left blank / hedged in the text):
 
-If you edit the sheet's structure (rename/remove a header, rename the tab), run the
+- **`.claude/skills/holdings-review/`** — for the holdings tab. Reads each holding
+  (your purchase reason, horizon, target sell price, plus the Track A figures) and
+  writes a personalized advisory comment into `AIコメント`.
+- **`.claude/skills/stock-research/`** — for the watchlist tabs. Researches the
+  values yfinance can't give (industry PER/PBR, an average target price, a theoretical
+  price) and writes them plus a synthesized verdict into `AI分析コメント`.
+
+See each skill's `SKILL.md` and the project `CLAUDE.md` for the research discipline.
+
+If you edit the sheet's structure (rename/remove a header, rename a tab), run the
 `sheet-sync` skill to reconcile `config.yaml`.
 
 ## Caveats

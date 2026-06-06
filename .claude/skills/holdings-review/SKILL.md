@@ -15,7 +15,7 @@ Japanese. The tab name `保有銘柄` below is a sheet identifier, kept as-is.)
 
 ## Target tab and columns
 
-- Processed tab: `保有銘柄` (the `holdings_tab` value in `config.yaml`).
+- Processed tab: `保有銘柄` (the tab of `type: holdings` in `config.yaml`'s `tabs`).
 - Columns are resolved by **header name**, not position (see `sheet.py`), so a
   column move in the sheet does not break this skill.
 - Inputs read for each holding (role → header label):

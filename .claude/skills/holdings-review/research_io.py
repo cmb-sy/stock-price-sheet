@@ -29,6 +29,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 from sheet import (  # noqa: E402
     get_client,
+    holdings_tabs,
     index_to_col,
     load_config,
     open_spreadsheet,
@@ -55,10 +56,18 @@ def _cell(row: list[str], col_idx: int) -> str:
     return row[i] if 0 <= i < len(row) else ""
 
 
+def _holdings_tab(cfg: dict) -> dict:
+    tabs = holdings_tabs(cfg)
+    if not tabs:
+        sys.exit("config.yaml has no tab of type 'holdings' for holdings-review")
+    return tabs[0]
+
+
 def read_rows(cfg: dict, ss) -> None:
-    ws = ss.worksheet(cfg["holdings_tab"])
+    tab = _holdings_tab(cfg)
+    ws = ss.worksheet(tab["tab"])
     header = ws.row_values(int(cfg["header_rows"]))
-    cols = resolve_columns(header, cfg["columns"], required={"ticker"})
+    cols = resolve_columns(header, tab["columns"], required={"ticker"})
     values = ws.get_all_values()
     out = []
     for r in range(int(cfg["header_rows"]), len(values)):
@@ -83,9 +92,10 @@ def read_rows(cfg: dict, ss) -> None:
 def write(cfg: dict, ss) -> None:
     payload = json.load(sys.stdin)
     writes = payload.get("writes", [])
-    ws = ss.worksheet(cfg["holdings_tab"])
+    tab = _holdings_tab(cfg)
+    ws = ss.worksheet(tab["tab"])
     header = ws.row_values(int(cfg["header_rows"]))
-    cols = resolve_columns(header, cfg["columns"], required={"ticker", WRITE_ROLE})
+    cols = resolve_columns(header, tab["columns"], required={"ticker", WRITE_ROLE})
     col_letter = index_to_col(cols[WRITE_ROLE])
     updates = []
     for w in writes:

@@ -1,6 +1,6 @@
 ---
 name: sheet-sync
-description: Detect drift between the live Google Sheet layout (tab names, columns, headers) and the repo's config.yaml / Track A / holdings-review skill, then reconcile config and flag code changes. Use after the sheet layout is edited (columns added/moved/renamed, tabs renamed) or when GitHub Actions fails with a grid/range or "header not found" error.
+description: Detect drift between the live Google Sheet layout (tab names, columns, headers) and the repo's config.yaml / Track A / holdings-review / stock-research, then reconcile config and flag code changes. Use after the sheet layout is edited (columns added/moved/renamed, tabs renamed) or when GitHub Actions fails with a grid/range or "header not found" error.
 argument-hint: "(no args)"
 ---
 
@@ -9,8 +9,8 @@ column no longer silently misdirects writes — instead, *renaming or removing* 
 header makes its role fail to resolve. This skill detects that and reconciles
 `config.yaml` (and flags any code follow-ups).
 
-(Repo files are in English; the sheet stays in Japanese. Tab names like `保有銘柄`
-are sheet identifiers, kept as-is.)
+(Repo files are in English; the sheet stays in Japanese. Tab names like
+`保有銘柄` / `監視-JP` are sheet identifiers, kept as-is.)
 
 ## Privacy
 
@@ -35,48 +35,84 @@ export GOOGLE_APPLICATION_CREDENTIALS="$PWD/sa-key.json"
 .venv/bin/python .claude/skills/sheet-sync/layout_io.py read-layout
 ```
 
-Returns `{"sheet": [{title, rows, cols, header}, ...], "config": {holdings_tab,
-header_rows, columns}}`. The `header` array is the row-1 labels in column order
-(index 0 = column A).
+Returns `{"sheet": [{title, rows, cols, header}, ...], "config": {header_rows,
+tabs}}`. The `header` array is the row-1 labels in column order (index 0 = column
+A). `config.tabs` is the list of `{tab, type, columns}` definitions.
 
 ### 2. Check that every configured role resolves
 
-`config.yaml` `columns` maps each logical role to an exact header label. For the
-`holdings_tab`, confirm each label below appears in that tab's `header` array.
+`config.yaml` `tabs` lists each processed tab with `type` (`holdings` or
+`watchlist`) and a `columns` map (role → exact header label). For each tab, find the
+matching live worksheet by `tab` name, then confirm each label appears in that
+worksheet's `header` array.
 
-| config role       | header label | owner / role                                  |
+**holdings tab roles** (e.g. `保有銘柄`):
+
+| role              | header label | owner / role                                  |
 |-------------------|--------------|-----------------------------------------------|
 | `ticker`          | Ticker       | manual; rows without it are skipped (required)|
-| `name`            | 銘柄名        | manual stock name                             |
-| `shares`          | 取得株数      | manual; multiplied by dividendRate for 配当金 |
-| `current_price`   | 現在株価      | Track A: yfinance currentPrice                |
-| `dividend_yield`  | 配当利回り    | Track A: yfinance dividendYield (percent)     |
-| `dividend_amount` | 配当金        | Track A: dividendRate * 取得株数              |
-| `horizon`         | 短中長期      | manual; holdings-review input                 |
-| `target_sell`     | 目標売却株価  | manual; holdings-review input                 |
-| `purchase_reason` | 購入理由      | manual; holdings-review input                 |
-| `ai_comment`      | AIコメント    | holdings-review writes this (only)            |
+| `name`            | 銘柄名        | manual                                        |
+| `shares`          | 取得株数      | manual; × dividendRate for 配当金             |
+| `current_price`   | 現在株価      | Track A: currentPrice                          |
+| `dividend_yield`  | 配当利回り    | Track A: dividendYield (percent)               |
+| `dividend_amount` | 配当金        | Track A: dividendRate × 取得株数              |
+| `horizon`         | 短中長期      | manual; holdings-review input                  |
+| `target_sell`     | 目標売却株価  | manual; holdings-review input                  |
+| `purchase_reason` | 購入理由      | manual; holdings-review input                  |
+| `ai_comment`      | AIコメント    | holdings-review writes this (only)             |
 
-A header in the sheet not in this table is **unknown**: do not guess its owner —
-list it in the report and ask the user how it should be filled.
+**watchlist tab roles** (e.g. `監視-JP`, `監視-US`):
+
+| role              | header label   | owner / role                          |
+|-------------------|----------------|---------------------------------------|
+| `ticker`          | Ticker         | manual; required                      |
+| `name`            | 銘柄名          | manual                                |
+| `my_target`       | 購入検討株価    | manual                                |
+| `current_price`   | 現在株価        | Track A: currentPrice                 |
+| `per`             | PER            | Track A: trailingPE                   |
+| `industry_per`    | 業界PER        | Track B (stock-research)              |
+| `pbr`             | PBR            | Track A: priceToBook                  |
+| `industry_pbr`    | 業界PBR        | Track B (stock-research)              |
+| `dividend_yield`  | 配当利回り      | Track A: dividendYield (percent)      |
+| `market_cap`      | 時価総額        | Track A: marketCap                    |
+| `vol_3mo_max`     | 3ヶ月最大出来高 | Track A: history(3mo) Volume max      |
+| `wk52_high`       | 52週高値        | Track A: fiftyTwoWeekHigh             |
+| `wk52_low`        | 52週安値        | Track A: fiftyTwoWeekLow              |
+| `eps_ttm`         | EPS(TTM)       | Track A: trailingEps                  |
+| `eps_fy0..3`      | EPS実績(...)   | Track A: income_stmt EPS              |
+| `eps_yoy_latest`  | EPS前年比(直近)%| Track A: computed                     |
+| `eps_yoy_prev`    | EPS前年比(前期)%| Track A: computed                     |
+| `target_mean`     | 合意目標(平均)  | Track A: targetMeanPrice              |
+| `target_high`     | 合意目標(高)    | Track A: targetHighPrice              |
+| `target_low`      | 合意目標(安)    | Track A: targetLowPrice               |
+| `num_analysts`    | アナリスト数    | Track A: numberOfAnalystOpinions      |
+| `rating`          | レーティング    | Track A: recommendationKey            |
+| `avg_target`      | 平均目標株価    | Track B (stock-research)              |
+| `theoretical`     | 理論株価        | Track B (stock-research)              |
+| `analysis_comment`| AI分析コメント  | Track B (stock-research) writes this  |
+| `memo`            | メモ            | manual                                |
+| `updated`         | 更新時刻        | Track A: write timestamp              |
+
+A header in the sheet not in the relevant table is **unknown**: do not guess its
+owner — list it in the report and ask the user how it should be filled.
 
 ### 3. Detect drift
 
-- **Tab drift**: `holdings_tab` no longer exists, or was renamed.
-- **Header drift**: a configured label that no longer matches any header (it was
-  renamed or removed) — Track A / the skill will fail to resolve it.
+- **Tab drift**: a configured `tab` no longer exists, or was renamed.
+- **Header drift**: a configured label that no longer matches any header in its tab
+  (renamed or removed) — Track A / the skill will fail to resolve it.
 - **New headers**: present in the sheet but not in `columns` (may need new code).
-- **Required-role hazard**: the `ticker` label missing means Track A aborts.
+- **Required-role hazard**: the `ticker` label missing means that tab aborts.
 
 (Because mapping is by name, a column that simply *moved* needs no change — that is
 the point of this design.)
 
 ### 4. Reconcile
 
-- **config-only changes** (safe to apply): update `columns` labels (and
-  `holdings_tab`) so every role points at the header label that now carries its
-  meaning. Update the layout comment block in `config.yaml` to match. Keep
-  `config.example.yaml` in sync.
+- **config-only changes** (safe to apply): update the affected tab's `columns`
+  labels (or its `tab` name) so every role points at the header label that now
+  carries its meaning. For watchlist tabs that share the `_watchlist_columns` YAML
+  anchor, edit the anchor once. Keep `config.example.yaml` in sync.
 - **code follow-ups** (cannot be auto-applied — list them): a new header that needs
   logic that does not exist yet (e.g. a new Track A computed value yfinance cannot
   derive), or a removed role still referenced in `update_prices.py` /

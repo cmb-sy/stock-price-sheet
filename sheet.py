@@ -31,16 +31,34 @@ def load_config() -> dict:
         )
     with CONFIG_PATH.open(encoding="utf-8") as f:
         cfg = yaml.safe_load(f) or {}
-    required = ["spreadsheet_id", "holdings_tab", "columns"]
+    required = ["spreadsheet_id", "tabs"]
     missing = [k for k in required if not cfg.get(k)]
     if missing:
         sys.exit(f"config.yaml is missing required keys: {missing}")
-    cols = cfg["columns"]
-    if not isinstance(cols, dict) or "ticker" not in cols:
-        sys.exit("config.yaml `columns` must be a map that includes a `ticker` label")
+    tabs = cfg["tabs"]
+    if not isinstance(tabs, list) or not tabs:
+        sys.exit("config.yaml `tabs` must be a non-empty list of tab definitions")
+    for t in tabs:
+        if not isinstance(t, dict) or not t.get("tab") or not t.get("type"):
+            sys.exit("each entry in `tabs` needs a `tab` name and a `type`")
+        if t["type"] not in ("holdings", "watchlist"):
+            sys.exit(f"unknown tab type {t['type']!r} (use 'holdings' or 'watchlist')")
+        cols = t.get("columns")
+        if not isinstance(cols, dict) or "ticker" not in cols:
+            sys.exit(f"tab {t['tab']!r} `columns` must be a map that includes a `ticker` label")
     cfg.setdefault("header_rows", 1)
     cfg.setdefault("timezone", "Asia/Tokyo")
     return cfg
+
+
+def holdings_tabs(cfg: dict) -> list[dict]:
+    """Tab definitions of type 'holdings' (the holdings-review skill's targets)."""
+    return [t for t in cfg["tabs"] if t.get("type") == "holdings"]
+
+
+def watchlist_tabs(cfg: dict) -> list[dict]:
+    """Tab definitions of type 'watchlist' (the stock-research skill's targets)."""
+    return [t for t in cfg["tabs"] if t.get("type") == "watchlist"]
 
 
 def get_client() -> gspread.Client:
