@@ -9,11 +9,15 @@ is defense-in-depth). Never print ticker symbols, names, or prices — only tab 
 
 Two tab types (config.yaml `tabs[].type`):
   holdings  -> 現在株価 = currentPrice, 配当利回り = dividendYield (a percent
-               number, e.g. 2.34), 配当金 = dividendRate * 取得株数.
-  watchlist -> the yfinance metric set (price, PER/PBR, dividend yield, EPS TTM,
-               EPS YoY, rating), market cap normalised to 億円 (JPY, FX-converted),
-               the next earnings date, a kabutan URL derived from the ticker, and a
-               write timestamp.
+               number, e.g. 2.34), 配当金 = dividendRate * 取得株数, PER/PBR, the
+               next earnings date, and the derived 評価額 (price*shares), 評価損益額,
+               評価損益率 and 目標との乖離率 (from the manual 取得株価/取得株数/
+               目標売却株価).
+  watchlist -> the yfinance metric set (price, PER/PBR, PEG, dividend yield, EPS TTM,
+               EPS YoY, 52-week high/low, rating), market cap normalised to 億円 (JPY,
+               FX-converted), the next earnings date, kabutan & minkabu URLs derived
+               from the ticker, the derived 52週レンジ内位置 and the gaps vs the
+               owner's 購入検討株価 and the analyst target, and a write timestamp.
 
 Track A writes only the roles it owns; the manual columns and the Track B columns
 (theme, industry PER/PBR, analyst/theoretical price, AI comments) are never touched.
@@ -38,7 +42,24 @@ from sheet import (
 )
 
 # --- holdings tab -----------------------------------------------------------
-HOLDINGS_WRITE_ROLES = ("current_price", "dividend_yield", "dividend_amount")
+# yfinance-sourced roles (filled by fetch_holding from Ticker.info / calendar).
+HOLDINGS_INFO_ROLES = (
+    "current_price",
+    "dividend_yield",
+    "dividend_amount",
+    "per",
+    "pbr",
+    "next_earnings",
+)
+# Derived in update_holdings from the fetched price and the manual 取得株価/取得株数/
+# 目標売却株価 cells (not available from a single yfinance call).
+HOLDINGS_DERIVED_ROLES = (
+    "eval_value",
+    "eval_pl",
+    "eval_pl_pct",
+    "target_gap_pct",
+)
+HOLDINGS_WRITE_ROLES = (*HOLDINGS_INFO_ROLES, *HOLDINGS_DERIVED_ROLES)
 
 # --- watchlist tab ----------------------------------------------------------
 # role -> yfinance Ticker.info field (written verbatim, "N/A" when absent).
@@ -46,24 +67,36 @@ WATCHLIST_INFO_FIELDS = {
     "current_price": "currentPrice",
     "per": "trailingPE",
     "pbr": "priceToBook",
+    "peg": "trailingPegRatio",
     "dividend_yield": "dividendYield",
     "eps_ttm": "trailingEps",
+    "week52_high": "fiftyTwoWeekHigh",
+    "week52_low": "fiftyTwoWeekLow",
     "rating": "recommendationKey",
 }
 # Derived (not raw Ticker.info): EPS YoY from income_stmt annual EPS, next earnings
-# date from ticker.calendar, the kabutan URL built from the ticker string, and the
-# market cap normalised to 億円 (JPY, FX-converted; see _market_cap_oku).
+# date from ticker.calendar, the kabutan / minkabu URLs built from the ticker string,
+# and the market cap normalised to 億円 (JPY, FX-converted; see _market_cap_oku).
 WATCHLIST_DERIVED_ROLES = (
     "eps_yoy_latest",
     "next_earnings",
     "kabutan_url",
+    "minkabu_url",
     "market_cap",
+)
+# Computed in update_watchlist from the fetched price and per-row sheet values
+# (52-week range position, gap vs the owner's 購入検討株価, gap vs the analyst target).
+WATCHLIST_COMPUTED_ROLES = (
+    "week52_pos_pct",
+    "my_target_gap_pct",
+    "analyst_gap_pct",
 )
 # Every role Track A may write into a watchlist tab (used to gate by what the tab
 # actually has a column for).
 WATCHLIST_WRITE_ROLES = (
     *WATCHLIST_INFO_FIELDS.keys(),
     *WATCHLIST_DERIVED_ROLES,
+    *WATCHLIST_COMPUTED_ROLES,
 )
 
 
@@ -98,6 +131,47 @@ def _dividend_total(rate: object, shares: object) -> object:
     if s is None or s == 0:
         return ""
     return round(r * s, 2)
+
+
+def _ratio(new: object, base: object) -> object:
+    """(new - base) / base * 100, rounded. 'N/A' if either side is non-numeric or
+    base == 0 (never a fabricated number)."""
+    n = _to_float(new)
+    b = _to_float(base)
+    if n is None or b is None or b == 0:
+        return "N/A"
+    return round((n - b) / b * 100, 2)
+
+
+def _product(a: object, b: object) -> object:
+    """a * b, rounded. '' (blank) when either factor is missing — mirrors
+    _dividend_total: a manual factor (shares) may legitimately be empty."""
+    x = _to_float(a)
+    y = _to_float(b)
+    if x is None or y is None:
+        return ""
+    return round(x * y, 2)
+
+
+def _eval_pl(price: object, acquire: object, shares: object) -> object:
+    """(price - acquire) * shares; '' when any factor is missing."""
+    p = _to_float(price)
+    a = _to_float(acquire)
+    s = _to_float(shares)
+    if p is None or a is None or s is None:
+        return ""
+    return round((p - a) * s, 2)
+
+
+def _range_pos(price: object, low: object, high: object) -> object:
+    """Position of price within [low, high] as a percent. 'N/A' when any input is
+    non-numeric or high == low."""
+    p = _to_float(price)
+    lo = _to_float(low)
+    hi = _to_float(high)
+    if p is None or lo is None or hi is None or hi == lo:
+        return "N/A"
+    return round((p - lo) / (hi - lo) * 100, 2)
 
 
 def _annual_eps(ticker: "yf.Ticker", n: int) -> list:
@@ -154,6 +228,15 @@ def _kabutan_url(symbol: str) -> str:
     if s.upper().endswith(".T"):
         return f"https://kabutan.jp/stock/?code={s[:-2]}"
     return f"https://us.kabutan.jp/stocks/{s.upper()}"
+
+
+def _minkabu_url(symbol: str) -> str:
+    """Minkabu stock-page URL derived from the yfinance ticker. Tokyo tickers
+    (suffix .T) map to minkabu.jp by numeric code; everything else to the US site."""
+    s = symbol.strip()
+    if s.upper().endswith(".T"):
+        return f"https://minkabu.jp/stock/{s[:-2]}"
+    return f"https://us.minkabu.jp/stocks/{s.upper()}"
 
 
 # Per-run cache of {currency -> JPY rate}; one network hit per foreign currency.
@@ -240,6 +323,9 @@ def fetch_holding(symbol: str, shares: object) -> dict | None:
             "current_price": _round(price) if price else "N/A",
             "dividend_yield": _round(info.get("dividendYield")),
             "dividend_amount": _dividend_total(info.get("dividendRate"), shares),
+            "per": info.get("trailingPE") if info.get("trailingPE") is not None else "N/A",
+            "pbr": info.get("priceToBook") if info.get("priceToBook") is not None else "N/A",
+            "next_earnings": _next_earnings(ticker),
         }
     except Exception:  # noqa: BLE001 - logged by row, never by symbol
         return None
@@ -284,6 +370,9 @@ def fetch_watchlist(symbol: str, roles: set[str]) -> dict | None:
         if "kabutan_url" in roles:
             out["kabutan_url"] = _kabutan_url(symbol)
 
+        if "minkabu_url" in roles:
+            out["minkabu_url"] = _minkabu_url(symbol)
+
         if "market_cap" in roles:
             out["market_cap"] = _market_cap_oku(info)
 
@@ -301,22 +390,36 @@ def _ticker_rows(values: list[list[str]], ticker_idx0: int, header_rows: int):
             yield r + 1, row, symbol
 
 
+def _cell_by_role(row: list[str], cols: dict[str, int], role: str) -> object:
+    """Value of a role's cell in this row, or None if the role/column is absent."""
+    i = (cols.get(role) or 0) - 1
+    return row[i] if 0 <= i < len(row) else None
+
+
 def update_holdings(ws, cols: dict[str, int], header_rows: int, dry_run: bool) -> tuple[int, int]:
     values = ws.get_all_values()
     ticker_idx0 = cols["ticker"] - 1
-    shares_idx0 = (cols.get("shares") or 0) - 1
     write_cols = {role: cols[role] for role in HOLDINGS_WRITE_ROLES if role in cols}
     updates: list[dict] = []
     n_ok = n_na = 0
     for row_num, row, symbol in _ticker_rows(values, ticker_idx0, header_rows):
-        shares = row[shares_idx0] if 0 <= shares_idx0 < len(row) else None
+        shares = _cell_by_role(row, cols, "shares")
         result = fetch_holding(symbol, shares)
         if result is None:
             n_na += 1
             print(f"  fetch failed at row {row_num}", file=sys.stderr)
             continue
+        # Derived from the fetched price and the manual 取得株価/取得株数/目標売却株価.
+        acquire = _cell_by_role(row, cols, "acquire_price")
+        target_sell = _cell_by_role(row, cols, "target_sell")
+        price = result.get("current_price")
+        result["eval_value"] = _product(price, shares)
+        result["eval_pl"] = _eval_pl(price, acquire, shares)
+        result["eval_pl_pct"] = _ratio(price, acquire)
+        result["target_gap_pct"] = _ratio(target_sell, price)
         for role, col_idx in write_cols.items():
-            updates.append({"range": f"{index_to_col(col_idx)}{row_num}", "values": [[result[role]]]})
+            if role in result:
+                updates.append({"range": f"{index_to_col(col_idx)}{row_num}", "values": [[result[role]]]})
         n_ok += 1
     if updates and not dry_run:
         ws.batch_update(updates, value_input_option="USER_ENTERED")
@@ -329,12 +432,19 @@ def update_watchlist(ws, cols: dict[str, int], header_rows: int, now: str, dry_r
     roles = {role for role in WATCHLIST_WRITE_ROLES if role in cols}
     updates: list[dict] = []
     n_ok = n_na = 0
-    for row_num, _row, symbol in _ticker_rows(values, ticker_idx0, header_rows):
+    for row_num, row, symbol in _ticker_rows(values, ticker_idx0, header_rows):
         result = fetch_watchlist(symbol, roles)
         if result is None:
             n_na += 1
             print(f"  fetch failed at row {row_num}", file=sys.stderr)
             continue
+        # Computed from the fetched price and per-row sheet values: position within the
+        # 52-week range, gap vs the owner's 購入検討株価, gap vs the (Track B) analyst
+        # target. Each degrades to 'N/A' when an input is missing — never fabricated.
+        price = result.get("current_price")
+        result["week52_pos_pct"] = _range_pos(price, result.get("week52_low"), result.get("week52_high"))
+        result["my_target_gap_pct"] = _ratio(price, _cell_by_role(row, cols, "my_target"))
+        result["analyst_gap_pct"] = _ratio(_cell_by_role(row, cols, "analyst_target"), price)
         for role, val in result.items():
             if role in cols:
                 updates.append({"range": f"{index_to_col(cols[role])}{row_num}", "values": [[val]]})
