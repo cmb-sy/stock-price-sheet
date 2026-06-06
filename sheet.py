@@ -1,5 +1,8 @@
 """Shared Google Sheets auth/config helpers for Track A (update_prices.py) and
-Track B (.claude/skills/stock-research/research_io.py).
+the holdings-review skill (.claude/skills/holdings-review/research_io.py).
+
+Columns are resolved by HEADER NAME (the row-1 label), never by fixed position,
+so adding/moving a column in the sheet does not silently break the mapping.
 
 Auth: provide service-account credentials via either
   - GCP_SA_KEY                    : the JSON key contents as a string (CI), or
@@ -28,17 +31,15 @@ def load_config() -> dict:
         )
     with CONFIG_PATH.open(encoding="utf-8") as f:
         cfg = yaml.safe_load(f) or {}
-    required = ["spreadsheet_id", "watchlists", "ticker_column", "fields"]
+    required = ["spreadsheet_id", "holdings_tab", "columns"]
     missing = [k for k in required if not cfg.get(k)]
     if missing:
         sys.exit(f"config.yaml is missing required keys: {missing}")
+    cols = cfg["columns"]
+    if not isinstance(cols, dict) or "ticker" not in cols:
+        sys.exit("config.yaml `columns` must be a map that includes a `ticker` label")
     cfg.setdefault("header_rows", 1)
-    cfg.setdefault("updated_column", "")
     cfg.setdefault("timezone", "Asia/Tokyo")
-    cfg.setdefault("name_column", "A")
-    cfg.setdefault("eps_history_columns", [])
-    cfg.setdefault("eps_yoy_columns", {})
-    cfg.setdefault("volume_3mo_max_column", "")
     return cfg
 
 
@@ -57,18 +58,47 @@ def get_client() -> gspread.Client:
     return gspread.authorize(creds)
 
 
-def col_to_index(letter: str) -> int:
-    """Convert a spreadsheet column letter to a 1-based index (A->1, AA->27)."""
-    letter = str(letter).strip().upper()
-    if not letter:
-        sys.exit("Empty column letter in config.yaml")
-    idx = 0
-    for ch in letter:
-        if not ("A" <= ch <= "Z"):
-            sys.exit(f"Invalid column letter: {letter!r}")
-        idx = idx * 26 + (ord(ch) - ord("A") + 1)
-    return idx
-
-
 def open_spreadsheet(cfg: dict, client: gspread.Client) -> gspread.Spreadsheet:
     return client.open_by_key(cfg["spreadsheet_id"])
+
+
+def index_to_col(index: int) -> str:
+    """Convert a 1-based column index to a spreadsheet letter (1->A, 27->AA)."""
+    if index < 1:
+        sys.exit(f"Invalid column index: {index!r}")
+    letters = ""
+    while index:
+        index, rem = divmod(index - 1, 26)
+        letters = chr(ord("A") + rem) + letters
+    return letters
+
+
+def resolve_columns(
+    header: list[str], label_map: dict[str, str], *, required: set[str] | None = None
+) -> dict[str, int]:
+    """Map each logical role to a 1-based column index by matching header labels.
+
+    `header` is the row-1 label list (index 0 = column A). `label_map` is
+    {role: exact header label}. Roles whose label is absent from the header are
+    omitted from the result, unless listed in `required`, in which case a missing
+    label is a fatal error (this is what catches layout drift early).
+    """
+    pos: dict[str, int] = {}
+    for i, label in enumerate(header, start=1):
+        key = str(label).strip()
+        if key and key not in pos:  # first occurrence wins on duplicate labels
+            pos[key] = i
+    resolved: dict[str, int] = {}
+    missing: list[str] = []
+    for role, label in label_map.items():
+        idx = pos.get(str(label).strip())
+        if idx is not None:
+            resolved[role] = idx
+        elif required and role in required:
+            missing.append(f"{role}={label!r}")
+    if missing:
+        sys.exit(
+            "header labels not found in the sheet (layout drift?): "
+            + ", ".join(missing)
+        )
+    return resolved

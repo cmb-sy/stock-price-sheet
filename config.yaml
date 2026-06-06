@@ -1,64 +1,41 @@
 # stock-price-sheet configuration. Committed so GitHub Actions can read it.
 # Contains NO secrets and NO tickers. The spreadsheet_id is just the ID from the
 # sheet URL; access is granted by sharing the sheet with the service account.
-# Tickers live ONLY in the ticker column of the private sheet — never in this repo.
+# Tickers live ONLY in the Ticker column of the private sheet — never in this repo.
 spreadsheet_id: "1JkQ25PnxflO86axqflNw1HgAHAMVN4dyiQkj1mmFYgE"
 timezone: "Asia/Tokyo"
 header_rows: 1
 
-# Track A (yfinance, via GitHub Actions) processes every ticker found in the
-# ticker column of each worksheet below. The tabs share one column layout.
-# These are the literal Japanese tab names in the sheet (the sheet stays in
-# Japanese); the code references them verbatim, so do not translate them.
-watchlists:
-  - "保有銘柄"   # holdings
-  - "監視-JP"    # JP watchlist
-  - "監視-US"    # US watchlist
-ticker_column: "AG"   # last column (manual entry, yfinance format)
-name_column: "A"      # stock name — manual Japanese name; Track A never writes it
+# The holdings tab Track A processes (the literal Japanese tab name in the sheet).
+holdings_tab: "保有銘柄"
 
-# Track A writes ONLY these yfinance-native Ticker.info fields (no over-fetching,
-# no AI). key = field name, value = destination column letter.
-# NOTE: column C is the manual "my target price", placed next to B (current price)
-# for at-a-glance comparison, so the auto fields below start at D.
-fields:
-  currentPrice: "B"              # current price
-  trailingPE: "D"                # PER
-  priceToBook: "E"               # PBR
-  dividendYield: "H"             # dividend yield
-  marketCap: "I"                 # market cap
-  fiftyTwoWeekHigh: "K"          # 52-week high
-  fiftyTwoWeekLow: "L"           # 52-week low
-  trailingEps: "M"               # EPS (TTM, current)
-  targetMeanPrice: "T"           # consensus target (mean)
-  targetHighPrice: "U"           # consensus target (high)
-  targetLowPrice: "V"            # consensus target (low)
-  numberOfAnalystOpinions: "W"   # number of analysts
-  recommendationKey: "X"         # rating
-
-# Track A computed fields (derived from yfinance financials/history):
-volume_3mo_max_column: "J"   # 3-month max volume = history("3mo")["Volume"].max()
-eps_history_columns:         # actual annual EPS, newest first (income_stmt Diluted/Basic EPS)
-  - "N"                      # EPS latest FY
-  - "O"                      # EPS 1 FY ago
-  - "P"                      # EPS 2 FY ago
-  - "Q"                      # EPS 3 FY ago
-eps_yoy_columns:
-  latest: "R"          # EPS YoY (latest)% = (EPS latest - EPS 1 ago) / |EPS 1 ago| * 100
-  prev: "S"            # EPS YoY (prev)%   = (EPS 1 ago  - EPS 2 ago) / |EPS 2 ago| * 100
-
-updated_column: "Y"          # Track A update timestamp
-
-# Columns NOT touched by Track A:
-#   A  stock name (Japanese)  manual
-#   C  my target price        manual (placed next to B current price)
-#   F  industry PER           Track B (web research)
-#   G  industry PBR           Track B (web research)
-#   Z  average target price   Track B (web research, single value)
-#   AA theoretical price      Track B (web research, single value)
-#   AB unused (reserved)
-#   AC unused (reserved)
-#   AD Track B fetch date     Track B (web research)
-#   AE analysis comment       Track B (Claude's own assessment, deep repeated research)
-#   AF memo                   manual
-#   AG ticker                 manual (yfinance format)
+# ---------------------------------------------------------------------------
+# Column mapping is by HEADER NAME (row-1 label), not by position. Each value is
+# the exact Japanese header label; the code resolves it to a column at runtime,
+# so inserting/moving a column does not break the mapping.
+#
+# 保有銘柄 columns and owners:
+#   銘柄名        manual            stock name
+#   取得日        manual            acquisition date
+#   短中長期      manual            horizon (AI-comment input)
+#   目標売却株価   manual            target sell price (AI-comment input)
+#   現在株価      Track A           yfinance currentPrice
+#   取得株価      manual            acquisition price
+#   取得株数      manual            shares held (used to compute 配当金)
+#   配当利回り     Track A           yfinance dividendYield (a percent number, e.g. 2.34)
+#   配当金        Track A           dividendRate * 取得株数 = annual dividend received
+#   購入理由      manual            purchase reason (AI-comment input)
+#   AIコメント     holdings-review   Claude's personalized per-holding comment
+#   Ticker        manual            yfinance format (7203.T, AAPL); rows without it are skipped
+# ---------------------------------------------------------------------------
+columns:
+  ticker: "Ticker"             # manual; rows without a ticker are skipped
+  name: "銘柄名"               # manual; never written by either track
+  shares: "取得株数"           # manual; multiplied by dividendRate for 配当金
+  current_price: "現在株価"    # Track A: yfinance currentPrice
+  dividend_yield: "配当利回り" # Track A: yfinance dividendYield (percent number)
+  dividend_amount: "配当金"    # Track A: dividendRate * shares (total annual dividend)
+  horizon: "短中長期"          # manual; AI-comment input
+  target_sell: "目標売却株価"  # manual; AI-comment input
+  purchase_reason: "購入理由"  # manual; AI-comment input
+  ai_comment: "AIコメント"     # holdings-review skill writes this (only)

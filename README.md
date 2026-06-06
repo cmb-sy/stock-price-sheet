@@ -1,51 +1,48 @@
 # stock-price-sheet
 
-Periodically writes the latest stock prices into a Google Sheet, on a GitHub
-Actions schedule. Prices are fetched with [yfinance](https://github.com/ranaroussi/yfinance),
-so both Japanese (`7203.T`) and US (`AAPL`) tickers work reliably. No machine of
-your own needs to be running — GitHub's runners do the work.
+Keeps a private Google Sheet of your **stock holdings** up to date, and lets Claude
+write you a personalized advisory comment on each position. Prices and dividends are
+fetched with [yfinance](https://github.com/ranaroussi/yfinance), so both Japanese
+(`7203.T`) and US (`AAPL`) tickers work. No machine of your own needs to be running —
+GitHub's runners do the automatic part.
 
 ## How it works
 
-Two tracks feed the sheet:
+The sheet has two tabs; this repo works on the **`保有銘柄`** (holdings) tab. The
+`売買履歴` (trade history) tab is left untouched.
 
-- **Track A — automatic (this script, `update_prices.py`).** A scheduled workflow
-  (`.github/workflows/update-prices.yml`) runs `update_prices.py`, which reads the
-  tickers from the last column (`AG`) of each watchlist tab and writes back the
-  yfinance-native fields listed in `config.yaml` (price, PER/PBR, dividend yield,
-  52-week range, EPS, consensus analyst targets, rating) plus values it can derive
-  (3-month max volume, the last four years of annual EPS, and EPS year-over-year)
-  and an update timestamp. It fetches only what yfinance provides — no scraping, no AI.
-- **Track B — manual (Claude skill, `.claude/skills/stock-research`).** For things
-  yfinance can't give (industry-average PER/PBR, an average analyst target price, a
-  theoretical price), a Claude skill does live web research, on demand, and writes a
-  Claude-synthesized analysis comment. It processes every row that has a ticker (no
-  monitor flag).
+Two tracks feed the holdings tab:
 
-The sheet has four tabs: `保有銘柄` (holdings), `監視-JP`, and `監視-US` (watchlists,
-all sharing one 33-column layout), plus `売買履歴` (a manual trade-journal tab the
-scripts never touch). The Japanese stock name lives in column `A` (manual), and the
-yfinance ticker in the last column `AG` (manual).
+- **Track A — automatic (`update_prices.py`).** A scheduled workflow
+  (`.github/workflows/update-prices.yml`) reads the tickers from the `Ticker` column
+  and writes back three yfinance-native values: `現在株価` (current price),
+  `配当利回り` (dividend yield, a percent number), and `配当金` (total annual dividend
+  = per-share dividend × your `取得株数`). It fetches only what yfinance provides — no
+  scraping, no AI.
+- **Track B — manual (`.claude/skills/holdings-review`).** A Claude skill that, for
+  each holding, deep-researches the market and the stock over repeated loops, weighs
+  it against **your own** purchase reason (`購入理由`), horizon (`短中長期`), and target
+  sell price (`目標売却株価`), and writes a personalized comment into the `AIコメント`
+  column — telling you whether your original thesis still holds and what to watch.
+
+Columns are mapped by **header name**, not by position (see `config.yaml`'s `columns`
+map), so adding or moving a column in the sheet does not break anything; only renaming
+or removing a header does.
 
 ## Setup
 
 ### 1. Prepare the Google Sheet
 
-- Create three watchlist tabs named exactly `保有銘柄`, `監視-JP`, and `監視-US`,
-  plus a `売買履歴` tab. (Tab names and headers are in Japanese; the repository
-  references them by these literal names.)
-- In each watchlist tab, put your tickers in the **last column (`AG`)**, in
-  **yfinance format**:
+- Have a tab named exactly `保有銘柄`. Row 1 holds the Japanese header labels listed
+  in `config.yaml` (銘柄名, 取得日, 短中長期, 目標売却株価, 現在株価, 取得株価, 取得株数,
+  配当利回り, 配当金, 購入理由, AIコメント, Ticker). The order does not matter — the
+  code finds each column by its label.
+- Put your tickers in the `Ticker` column, in **yfinance format**:
   - Japan (Tokyo): `7203.T`, `9984.T`, ...
   - US: `AAPL`, `MSFT`, ...
-- Column `A` is the stock name (manual, Japanese). `C` is your target price
-  (manual), placed next to `B` (current price) for at-a-glance comparison. Track A
-  fills the yfinance-native and derived columns (`B`, `D`–`E`, `H`–`Y`); columns
-  `F`/`G` (industry-average PER/PBR) and `Z`/`AA`/`AD`/`AE` are filled by Track B
-  (`AB`/`AC` are unused); `C` (your target price) and `AF` (memo) are yours to edit.
-  There is no monitor flag — Track B researches every row that has a ticker.
-- The `売買履歴` tab is a free-form trade journal (date / ticker / buy-sell /
-  shares / price / your reason / a difficulty note) — no script writes to it.
+- Fill the manual columns yourself (銘柄名, 取得日, 短中長期, 目標売却株価, 取得株価,
+  取得株数, 購入理由). Track A fills 現在株価 / 配当利回り / 配当金; the holdings-review
+  skill fills AIコメント. Rows with no ticker are skipped.
 
 ### 2. Create a Google service account
 
@@ -72,14 +69,13 @@ yfinance ticker in the last column `AG` (manual).
 
 ```bash
 cp config.example.yaml config.yaml
-# edit config.yaml: set your spreadsheet_id. The watchlists list, ticker_column,
-# the yfinance `fields` map, and the derived/updated columns are pre-filled for
-# the 保有銘柄 / 監視-JP / 監視-US tabs.
+# edit config.yaml: set your spreadsheet_id. holdings_tab and the columns map
+# (role -> Japanese header label) are pre-filled for the 保有銘柄 layout.
 git add config.yaml && git commit -m "configure sheet mapping" && git push
 ```
 
-`config.yaml` must be committed so the Actions runner can read it. It contains
-no secrets and no tickers — the `spreadsheet_id` is just the ID from the sheet URL.
+`config.yaml` must be committed so the Actions runner can read it. It contains no
+secrets and no tickers — the `spreadsheet_id` is just the ID from the sheet URL.
 
 ### 6. Run it
 
@@ -92,28 +88,34 @@ no secrets and no tickers — the `spreadsheet_id` is just the ID from the sheet
 ```bash
 pip install -r requirements.txt
 export GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
-python update_prices.py
+python update_prices.py --dry-run   # fetch + resolve columns, write nothing
+python update_prices.py             # actually write
+python -m unittest discover -s tests
 ```
 
 ## Track B (manual research with Claude)
 
-Track B is a Claude Code skill at `.claude/skills/stock-research/`. Open this repo
-in Claude Code and run the skill; it reads every row that has a ticker, does live
-web research with the latest available sources, and writes industry-average PER/PBR,
-an average analyst target price, a theoretical price, and a Claude-synthesized
-analysis comment — never fabricating values (unconfirmed fields are left blank). See
-that skill's `SKILL.md` and the project `CLAUDE.md` for the research discipline.
+Track B is a Claude Code skill at `.claude/skills/holdings-review/`. Open this repo in
+Claude Code and run the skill; it reads each holding (your purchase reason, horizon,
+target sell price, plus the Track A figures), does looped live web research with the
+latest sources, and writes a personalized advisory comment into `AIコメント` — never
+fabricating values (anything unconfirmed is hedged in the text). See that skill's
+`SKILL.md` and the project `CLAUDE.md` for the research discipline.
+
+If you edit the sheet's structure (rename/remove a header, rename the tab), run the
+`sheet-sync` skill to reconcile `config.yaml`.
 
 ## Caveats
 
 - **Timing is approximate.** GitHub Actions scheduled runs are commonly delayed
-  10-30+ minutes and can be skipped under load. This is fine for a watchlist,
-  not for real-time trading.
-- **Schedule is UTC.** The cron in the workflow targets JP (00:00-06:00 UTC) and
-  US (13:00-21:00 UTC) market hours, Mon-Fri. Adjust if your markets differ.
+  10-30+ minutes and can be skipped under load. Fine for holdings tracking, not for
+  real-time trading.
+- **Schedule is UTC.** The workflow runs twice a day on weekdays — 06:00 UTC
+  (15:00 JST, after the Tokyo close) and 22:00 UTC (07:00 JST, after the US close).
+  Adjust the cron if your markets differ.
 - **Auto-disable.** GitHub disables scheduled workflows after 60 days without a
-  commit to the repo. Push something occasionally, or re-enable from the Actions
-  tab.
-- **Minutes.** Public repos get unlimited Actions minutes; private repos draw
-  from the free monthly allowance and may incur cost at high frequency.
+  commit to the repo. Push something occasionally, or re-enable from the Actions tab.
 - **Tickers must be yfinance format** (`7203.T`, not `TYO:7203`).
+- **Dividend currency.** 配当金 is in the stock's own currency (JPY for `*.T`, USD for
+  US tickers), so a mixed-market holdings tab mixes currencies in that column — same
+  as 現在株価.

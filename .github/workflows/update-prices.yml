@@ -3,11 +3,13 @@ name: Update stock prices
 on:
   schedule:
     # NOTE: GitHub Actions cron is in UTC and scheduled runs are frequently
-    # delayed 10-30+ minutes (sometimes skipped) under load. Treat this as
-    # "roughly every 30 min during market hours", not real-time.
-    #   JP  TSE 09:00-15:00 JST = 00:00-06:00 UTC
-    #   US  ~09:30-16:00 ET    = ~13:00-21:00 UTC (covers both EDT and EST)
-    - cron: "*/30 0-6,13-21 * * 1-5"
+    # delayed 10-30+ minutes (sometimes skipped) under load. Treat these as
+    # "soon after each market close", not real-time.
+    # Twice a day on weekdays:
+    #   06:00 UTC = 15:00 JST -> after the TSE (JP) close
+    #   22:00 UTC = 07:00 JST -> after the US close (covers EDT/EST; prices are
+    #                            the prior session's close)
+    - cron: "0 6,22 * * 1-5"
   workflow_dispatch: {}
 
 # Scheduled workflows are auto-disabled after 60 days with no repo commits.

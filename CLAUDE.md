@@ -11,14 +11,14 @@ names, headers, and data — stays in Japanese; the tab-name literals such as
 
 - Never include the owner's PII (name, email, address, phone number, etc.) in any
   code, config, commit message, README, documentation, or log.
-- Never put the tickers the owner actually holds/watches anywhere in the repo. The
-  real tickers exist **only in the private Google Sheet and are never committed**.
+- Never put the tickers the owner actually holds anywhere in the repo. The real
+  tickers exist **only in the private Google Sheet and are never committed**.
 - Ticker examples in docs or code must be generic format-illustration examples
   (`7203.T`, `AAPL`, etc.). Do not use the owner's real holdings as examples.
-- Do not write the owner's real held/watched tickers as a literal in any file in
-  the repo (code, config, README, docs, anything under `.claude/skills/`, sample
-  or seed scripts) — not even as an "example". Real tickers live **only in the
-  sheet's Ticker column (the last column, AG)**.
+- Do not write the owner's real held tickers as a literal in any file in the repo
+  (code, config, README, docs, anything under `.claude/skills/`, sample or seed
+  scripts) — not even as an "example". Real tickers live **only in the sheet's
+  Ticker column**.
 - If a setup/seed script that contains tickers is needed, keep and run it outside
   the repo (e.g. `/tmp`) and never commit it.
 
@@ -35,56 +35,74 @@ names, headers, and data — stays in Japanese; the tab-name literals such as
 
 - The service-account JSON key is injected only via the GitHub secret `GCP_SA_KEY`.
   Never commit it (already gitignored: `*.json`).
-- `config.yaml` contains only the `spreadsheet_id` (an ID that is safe to publish).
-  Never put tickers, PII, or keys in it.
+- `config.yaml` contains only the `spreadsheet_id` (an ID that is safe to publish)
+  and the column mapping (generic Japanese header labels). Never put tickers, PII,
+  or keys in it.
 
-## Data layout (two tracks / the sheet)
+## Data layout (the sheet)
 
-- The sheet has 4 tabs: `保有銘柄`, `監視-JP`, `監視-US` (watchlists; one shared
-  33-column layout, A–AG) and `売買履歴`. `watchlists` in `config.yaml` are the
-  processed tabs.
-- Column layout (A–AG): A stock name (manual, Japanese) / B current price /
-  C my target price (manual, placed next to B) / D PER / E PBR / F industry PER /
-  G industry PBR / H dividend yield / I market cap / J 3-month max volume /
-  K 52-week high / L 52-week low / M EPS (TTM) /
-  N–Q actual EPS (latest–3 FY ago) / R,S EPS YoY (latest/prev)% /
-  T–V consensus target (mean/high/low) / W number of analysts / X rating /
-  Y Track A update time / Z average target price / AA theoretical price /
-  AB unused (reserved) / AC unused (reserved) / AD Track B fetch date /
-  AE analysis comment (Claude-synthesized) /
-  AF memo (manual) / AG Ticker (manual, last column, yfinance format).
-- **Track A** (`update_prices.py`, GitHub Actions, automatic): writes only values
-  yfinance returns natively plus values derived from them (3-month max volume, EPS
-  history, EPS YoY). No over-fetching, no AI inference. The columns it writes are
-  limited to `config.yaml`'s `fields` plus the computed columns (J, N–S, Y).
-  Industry PER/PBR (F/G) is not available from yfinance, so Track A never touches it.
-- **Track B** (`.claude/skills/stock-research`, run manually by Claude): web-researches
-  the values yfinance can't give (industry-average PER/PBR, an average analyst target
-  price, a theoretical price) and writes a Claude-synthesized analysis comment, to
-  columns F/G/Z/AA/AD/AE. It targets **every row that has a ticker** (the monitor flag
-  has been removed). Columns AB/AC are unused.
-- Column A (stock name), C (my target price), AF (memo), AG (Ticker), and the
-  entire `売買履歴` tab are human-edited areas. Tracks A/B never overwrite them.
-- Numeric columns already have display formats (thousands separators, e.g. 1,000).
-  Write raw numbers; let the format handle the grouping.
-- See the comments in `config.yaml` for the full column definitions.
+The sheet has two tabs. The system processes **`保有銘柄`** (holdings); `売買履歴`
+(trade history) is **not** read or written by any code path here.
 
-## Track B (web research) discipline
+### 保有銘柄 (holdings)
 
-- When researching prices, metrics, or target prices, always reference **the latest
-  information as of the time of research**. Do not rely on memory or stale cache;
-  confirm the latest primary sources/reporting.
-- **Never fabricate** numbers, target prices, or ratings. Leave unconfirmed values
-  blank or mark them "unknown"; never fill them in by guessing.
-- Record the **fetch date (column AD)** for the values. Source URLs are not stored in
-  the sheet; summarize the basis/reasoning in the AE analysis comment instead.
-- `Z` (average target price) and `AA` (theoretical price) are each a **single number**,
-  not a list. Columns AB/AC are unused.
-- The **analysis comment (column AE)** is **Claude's own analytical assessment** — an
-  opinionated judgment (lead with a verdict, use the figures as evidence, close with a
-  stance), not a restatement of the researched numbers — synthesizing repeated research
-  from multiple angles with the Track A fundamentals. If a comment already exists,
-  update it with the latest information.
+Columns are mapped by **header name** (the row-1 label), not by position — see the
+`columns` map in `config.yaml`. Inserting or moving a column does not break the
+mapping; only renaming/removing a header does. The headers and their owners:
+
+| Header       | Owner               | Source / meaning                                    |
+|--------------|---------------------|-----------------------------------------------------|
+| 銘柄名       | manual              | stock name (Japanese)                               |
+| 取得日       | manual              | acquisition date                                    |
+| 短中長期     | manual              | holding horizon (short/mid/long) — AI-comment input |
+| 目標売却株価 | manual              | target sell price — AI-comment input                |
+| 現在株価     | **Track A**         | yfinance `currentPrice`                             |
+| 取得株価     | manual              | acquisition price                                   |
+| 取得株数     | manual              | shares held (used to compute 配当金)                |
+| 配当利回り   | **Track A**         | yfinance `dividendYield` (a percent number, e.g. 2.34) |
+| 配当金       | **Track A**         | `dividendRate` × 取得株数 = total annual dividend   |
+| 購入理由     | manual              | purchase reason (the thesis) — AI-comment input     |
+| AIコメント   | **holdings-review** | Claude's personalized per-holding comment           |
+| Ticker       | manual              | yfinance format (`7203.T`, `AAPL`); rows without it are skipped |
+
+- **Track A** (`update_prices.py`, GitHub Actions, automatic): writes only
+  `現在株価`, `配当利回り`, and `配当金`, all derived from yfinance natively (no
+  scraping, no AI). 配当金 = per-share `dividendRate` × the manual 取得株数 (blank when
+  取得株数 is empty). Targets every row that has a ticker.
+- **holdings-review** (`.claude/skills/holdings-review`, run manually by Claude):
+  for each holding, deep-researches the market and the stock over **repeated loops**,
+  judges it against the owner's own 購入理由 / 短中長期 / 目標売却株価, and writes a
+  personalized advisory comment to **`AIコメント`** (the only column it writes). It
+  does **not** consult 売買履歴.
+- Manual columns (銘柄名, 取得日, 短中長期, 目標売却株価, 取得株価, 取得株数, 購入理由,
+  Ticker) are human-edited; neither code path overwrites them.
+- Numeric columns already have display formats (thousands separators, `%`, etc.).
+  Write raw numbers and percent values as numbers (e.g. `2.34` for 2.34%); let the
+  cell format handle grouping and the `%` sign.
+
+### Column mapping discipline (header-name based)
+
+The mapping lives in `config.yaml` `columns` as {role → exact Japanese header label}
+and is resolved at runtime by `sheet.py` `resolve_columns`. If the sheet's headers
+are renamed/removed, a role will fail to resolve (Track A aborts on a missing
+`ticker`; the `sheet-sync` skill reconciles the labels). Do not reintroduce
+positional (A/B/C) column constants.
+
+## holdings-review (AI comment) discipline
+
+- When researching, always reference **the latest information as of the time of
+  research**. Do not rely on memory or stale cache; confirm the latest primary
+  sources/reporting.
+- **Loop, don't one-shot**: research each holding repeatedly from multiple angles
+  (macro/market, sector, company fundamentals/catalysts, valuation) before forming a
+  judgment.
+- **Never fabricate** prices, figures, or events. If something cannot be confirmed,
+  hedge it in the comment text rather than guessing.
+- The comment is a **personalized verdict addressed to the owner**: it must engage
+  with their specific 購入理由 / 短中長期 / 目標売却株価 (is the thesis still intact,
+  given the latest facts and their horizon?), use the figures as evidence, name the
+  key risks and what to watch, and close with a stance. There is **no fetch-date
+  column** — record the research date inside the comment text.
 - The skill's output is handled only transiently in the local Claude session. Never
   leave tickers, prices, or PII **in committed files or public logs (Actions, etc.)**
   (handling them transiently for research is fine).
@@ -93,6 +111,7 @@ names, headers, and data — stays in Japanese; the tab-name literals such as
 
 - Tickers use yfinance format (`7203.T`, `AAPL`; not `TYO:7203`).
 - Local run: `GOOGLE_APPLICATION_CREDENTIALS=/path/to/sa-key.json python update_prices.py`
+  (`--dry-run` fetches and resolves columns without writing).
 - Access to the spreadsheet is granted by "sharing the sheet with the service
   account's email" (not via a GCP IAM role). The service account can access only
   the shared sheet, not the owner's entire Drive.

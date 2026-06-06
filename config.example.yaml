@@ -4,48 +4,34 @@
 # the sheet with the service account). The service-account JSON key is the only
 # secret and is passed via the GCP_SA_KEY GitHub Actions secret, never committed.
 #
-# Do NOT put any ticker symbols in this repo. Tickers go in the ticker column of
+# Do NOT put any ticker symbols in this repo. Tickers go in the Ticker column of
 # the private sheet only. See CLAUDE.md.
 spreadsheet_id: "PASTE_SPREADSHEET_ID_HERE"  # from docs.google.com/spreadsheets/d/<THIS_PART>/edit
 timezone: "Asia/Tokyo"
 header_rows: 1
 
-# Worksheet (tab) names Track A processes. Tickers in the ticker column use
-# yfinance format: 7203.T (Tokyo), AAPL (US) — generic format examples only.
-# These are the literal Japanese tab names in the sheet (the sheet stays in
-# Japanese); the code references them verbatim, so do not translate them.
-watchlists:
-  - "保有銘柄"   # holdings
-  - "監視-JP"    # JP watchlist
-  - "監視-US"    # US watchlist
-ticker_column: "AG"   # last column
-name_column: "A"      # stock name (manual Japanese; Track A never writes it)
+# The holdings tab Track A processes (the literal Japanese tab name in the sheet,
+# kept verbatim — the code references it as-is).
+holdings_tab: "保有銘柄"
 
-# Track A writes ONLY these yfinance Ticker.info fields. key = field, value = column.
-fields:
-  currentPrice: "B"
-  trailingPE: "C"
-  priceToBook: "D"
-  dividendYield: "G"
-  marketCap: "H"
-  fiftyTwoWeekHigh: "J"
-  fiftyTwoWeekLow: "K"
-  trailingEps: "L"
-  targetMeanPrice: "S"
-  targetHighPrice: "T"
-  targetLowPrice: "U"
-  numberOfAnalystOpinions: "V"
-  recommendationKey: "W"
-
-# Track A computed fields:
-volume_3mo_max_column: "I"   # max daily volume over the last 3 months
-eps_history_columns:         # actual annual EPS, newest first
-  - "M"
-  - "N"
-  - "O"
-  - "P"
-eps_yoy_columns:
-  latest: "Q"
-  prev: "R"
-
-updated_column: "X"          # timestamp column; set "" to disable
+# ---------------------------------------------------------------------------
+# Column mapping is by HEADER NAME (row-1 label), not by position. Each value is
+# the exact Japanese header label; the code resolves it to a column at runtime,
+# so inserting/moving a column does not break the mapping. `ticker` is required;
+# any role whose label is absent from the sheet is simply skipped.
+#
+# Owners: Track A writes current_price / dividend_yield / dividend_amount only.
+# The holdings-review Claude skill writes ai_comment only. Everything else is
+# human-edited and never overwritten.
+# ---------------------------------------------------------------------------
+columns:
+  ticker: "Ticker"             # manual; rows without a ticker are skipped
+  name: "銘柄名"               # manual; never written by either track
+  shares: "取得株数"           # manual; multiplied by dividendRate for 配当金
+  current_price: "現在株価"    # Track A: yfinance currentPrice
+  dividend_yield: "配当利回り" # Track A: yfinance dividendYield (percent number)
+  dividend_amount: "配当金"    # Track A: dividendRate * shares (total annual dividend)
+  horizon: "短中長期"          # manual; AI-comment input
+  target_sell: "目標売却株価"  # manual; AI-comment input
+  purchase_reason: "購入理由"  # manual; AI-comment input
+  ai_comment: "AIコメント"     # holdings-review skill writes this (only)
