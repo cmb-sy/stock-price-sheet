@@ -8,3 +8,8 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+
+# Google Apps Script (webapp). .clasp.json holds the scriptId linkage and is
+# already matched by *.json above — keep it local. The appsscript.json manifest is
+# safe (no secrets/tickers) and must be committed, so re-include it:
+!webapp/appsscript.json
