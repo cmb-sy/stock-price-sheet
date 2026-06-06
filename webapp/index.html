@@ -3,79 +3,205 @@
 <head>
   <base target="_top">
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <style>
-    :root { --bd: #d0d7de; --hd: #f3f6fa; --ed: #fff8e1; --accent: #0969da; }
-    * { box-sizing: border-box; }
-    body { font-family: -apple-system, "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
-           margin: 0; color: #1f2328; font-size: 14px; }
-    header { position: sticky; top: 0; background: #fff; border-bottom: 1px solid var(--bd);
-             padding: 10px 12px; z-index: 5; }
-    h1 { font-size: 16px; margin: 0 0 8px; }
-    .tabs { display: flex; gap: 6px; flex-wrap: wrap; }
-    .tab { padding: 6px 12px; border: 1px solid var(--bd); border-radius: 16px;
-           background: #fff; cursor: pointer; font-size: 13px; }
-    .tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
-    #status { padding: 8px 12px; color: #57606a; }
-    .table-wrap { overflow-x: auto; }
-    table { border-collapse: collapse; width: 100%; }
-    th, td { border: 1px solid var(--bd); padding: 6px 8px; white-space: nowrap;
-             text-align: left; vertical-align: top; }
-    th { background: var(--hd); position: sticky; top: 0; font-weight: 600; }
-    th.editable::after { content: " ✎"; color: var(--accent); font-size: 11px; }
-    td.editable { background: var(--ed); }
-    .edit-btn { padding: 4px 10px; border: 1px solid var(--accent); color: var(--accent);
-                background: #fff; border-radius: 6px; cursor: pointer; }
-    .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.35); display: none;
-               align-items: flex-start; justify-content: center; z-index: 10; padding: 16px; }
-    .overlay.open { display: flex; }
-    .panel { background: #fff; border-radius: 10px; max-width: 520px; width: 100%;
-             max-height: 90vh; overflow-y: auto; padding: 16px; }
-    .panel h2 { font-size: 15px; margin: 0 0 12px; }
-    .fld { margin-bottom: 12px; }
-    .fld label { display: block; font-weight: 600; margin-bottom: 4px; }
-    .fld input, .fld textarea { width: 100%; padding: 8px; border: 1px solid var(--bd);
-                                border-radius: 6px; font: inherit; }
-    .fld textarea { min-height: 64px; resize: vertical; }
-    .ro { color: #57606a; font-size: 12px; margin: 10px 0; }
-    .ro div { padding: 2px 0; }
-    .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
-    .btn { padding: 8px 16px; border-radius: 6px; cursor: pointer; border: 1px solid var(--bd);
-           background: #fff; }
+    :root {
+      --bg: #f2f4f7; --card: #ffffff; --ink: #111827; --sub: #6b7280;
+      --line: #e5e7eb; --accent: #2563eb; --accent-soft: #eff4ff;
+      --chip: #f3f4f6; --edit: #fff8e1; --edit-bd: #f0d68a;
+      --shadow: 0 1px 2px rgba(16,24,40,.06), 0 4px 16px rgba(16,24,40,.06);
+      --radius: 16px;
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN",
+        "Yu Gothic", Meiryo, sans-serif;
+      background: var(--bg); color: var(--ink);
+      font-size: 15px; line-height: 1.5;
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    /* ---- header / tabs ---- */
+    header {
+      position: sticky; top: 0; z-index: 20;
+      background: rgba(255,255,255,.86); backdrop-filter: saturate(1.4) blur(12px);
+      border-bottom: 1px solid var(--line);
+      padding: calc(env(safe-area-inset-top) + 10px) 16px 0;
+    }
+    h1 { font-size: 17px; font-weight: 700; margin: 0 0 10px; letter-spacing: .01em; }
+    .segmented { display: flex; gap: 4px; background: var(--chip);
+      padding: 4px; border-radius: 12px; overflow-x: auto; }
+    .seg { flex: 1 0 auto; border: 0; background: transparent; color: var(--sub);
+      font: inherit; font-weight: 600; font-size: 13px; padding: 8px 12px;
+      border-radius: 9px; cursor: pointer; white-space: nowrap; transition: .15s; }
+    .seg.active { background: var(--card); color: var(--ink);
+      box-shadow: 0 1px 2px rgba(16,24,40,.12); }
+    .meta { display: flex; justify-content: space-between; align-items: center;
+      padding: 8px 2px 10px; color: var(--sub); font-size: 12px; }
+
+    /* ---- list / cards ---- */
+    main { padding: 4px 12px 24px; max-width: 720px; margin: 0 auto; }
+    .card {
+      background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
+      padding: 14px 16px; margin: 10px 0; animation: rise .25s ease both;
+    }
+    @keyframes rise { from { opacity: 0; transform: translateY(6px); } }
+    .card-top { display: flex; align-items: baseline; gap: 10px; }
+    .name { font-size: 17px; font-weight: 700; flex: 1; min-width: 0;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .price { font-size: 22px; font-weight: 800; letter-spacing: -.01em;
+      font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .ticker { color: var(--sub); font-size: 12px; font-weight: 600;
+      letter-spacing: .03em; margin-top: 2px; }
+
+    .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px 14px;
+      margin: 12px 0 2px; }
+    @media (min-width: 480px) { .grid { grid-template-columns: repeat(3, 1fr); } }
+    .metric { min-width: 0; }
+    .metric .k { color: var(--sub); font-size: 11px; font-weight: 600;
+      display: block; margin-bottom: 1px; }
+    .metric .v { font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .metric.ed .k::after { content: " ✎"; color: var(--accent); font-weight: 400; }
+    .metric.ed .v { color: #92660a; }
+    a.link { color: var(--accent); text-decoration: none; font-weight: 700; }
+    a.link::after { content: " ↗"; font-size: 11px; }
+
+    .notes { border-top: 1px dashed var(--line); margin-top: 12px; padding-top: 10px; }
+    .note { margin: 8px 0; }
+    .note .k { font-size: 11px; font-weight: 700; color: var(--accent);
+      display: inline-block; background: var(--accent-soft); padding: 1px 8px;
+      border-radius: 999px; margin-bottom: 4px; }
+    .note.man .k { color: #92660a; background: var(--edit); }
+    .note .body { font-size: 13.5px; color: #374151; white-space: pre-wrap;
+      word-break: break-word; }
+    .note .body.clamp {
+      display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .more { background: none; border: 0; color: var(--accent); font: inherit;
+      font-size: 12px; font-weight: 700; padding: 4px 0; cursor: pointer; }
+
+    .card-foot { display: flex; align-items: center; justify-content: space-between;
+      margin-top: 12px; }
+    .stamp { color: #9ca3af; font-size: 11px; font-variant-numeric: tabular-nums; }
+    .edit-btn { border: 1px solid var(--line); background: var(--card); color: var(--ink);
+      font: inherit; font-weight: 700; font-size: 13px; padding: 8px 16px;
+      border-radius: 10px; cursor: pointer; transition: .15s; }
+    .edit-btn:active { transform: scale(.97); }
+
+    /* ---- skeleton / empty ---- */
+    .skel { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
+      padding: 16px; margin: 10px 0; }
+    .sk { background: linear-gradient(90deg, #eee 25%, #f5f5f5 37%, #eee 63%);
+      background-size: 400% 100%; animation: sh 1.2s infinite; border-radius: 6px; }
+    @keyframes sh { from { background-position: 100% 0; } to { background-position: 0 0; } }
+    .empty { text-align: center; color: var(--sub); padding: 48px 16px; }
+    .empty .ico { font-size: 32px; }
+
+    /* ---- bottom sheet editor ---- */
+    .scrim { position: fixed; inset: 0; background: rgba(17,24,39,.45);
+      opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 30; }
+    .scrim.open { opacity: 1; pointer-events: auto; }
+    .sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 31;
+      background: var(--card); border-radius: 20px 20px 0 0;
+      max-width: 720px; margin: 0 auto; max-height: 92vh; overflow-y: auto;
+      transform: translateY(100%); transition: transform .26s cubic-bezier(.32,.72,0,1);
+      padding: 8px 18px calc(20px + env(safe-area-inset-bottom));
+      box-shadow: 0 -8px 40px rgba(16,24,40,.2); }
+    .sheet.open { transform: translateY(0); }
+    .handle { width: 40px; height: 4px; background: #d1d5db; border-radius: 999px;
+      margin: 8px auto 6px; }
+    .sheet h2 { font-size: 16px; margin: 6px 0 14px; }
+    .sheet h2 small { color: var(--sub); font-weight: 600; font-size: 12px; }
+    .fld { margin-bottom: 14px; }
+    .fld label { display: block; font-weight: 700; font-size: 13px; margin-bottom: 6px; }
+    .fld input, .fld textarea { width: 100%; padding: 11px 12px;
+      border: 1px solid var(--line); border-radius: 12px; font: inherit; font-size: 15px;
+      background: #fafafa; transition: .15s; }
+    .fld input:focus, .fld textarea:focus { outline: none; border-color: var(--accent);
+      background: #fff; box-shadow: 0 0 0 3px var(--accent-soft); }
+    .fld textarea { min-height: 92px; resize: vertical; line-height: 1.55; }
+    .ro { background: var(--chip); border-radius: 12px; padding: 10px 12px; margin: 6px 0 16px; }
+    .ro .h { font-size: 11px; font-weight: 700; color: var(--sub); margin-bottom: 6px; }
+    .ro .row { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0;
+      font-size: 13px; }
+    .ro .row .rk { color: var(--sub); }
+    .ro .row .rv { font-weight: 600; text-align: right; word-break: break-word; }
+    .actions { position: sticky; bottom: 0; background: var(--card);
+      display: flex; gap: 10px; padding: 12px 0 4px; }
+    .btn { flex: 1; padding: 13px; border-radius: 12px; font: inherit; font-weight: 700;
+      font-size: 15px; cursor: pointer; border: 1px solid var(--line); background: #fff; }
     .btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
-    .btn[disabled] { opacity: .5; cursor: default; }
+    .btn:active { transform: scale(.98); }
+    .btn[disabled] { opacity: .55; cursor: default; transform: none; }
+
+    .toast { position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 20px);
+      background: #111827; color: #fff; padding: 10px 18px; border-radius: 999px;
+      font-size: 13px; font-weight: 600; opacity: 0; pointer-events: none;
+      transition: .25s; z-index: 40; }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
   </style>
 </head>
 <body>
   <header>
     <h1>保有・監視シート</h1>
-    <div class="tabs" id="tabs"></div>
+    <div class="segmented" id="tabs"></div>
+    <div class="meta"><span id="count"></span><span id="hint"></span></div>
   </header>
-  <div id="status">読み込み中…</div>
-  <div class="table-wrap"><table id="grid"></table></div>
 
-  <div class="overlay" id="overlay">
-    <div class="panel">
-      <h2 id="panelTitle">編集</h2>
-      <div id="formFields"></div>
-      <div class="ro" id="roFields"></div>
-      <div class="actions">
-        <button class="btn" id="cancelBtn">キャンセル</button>
-        <button class="btn primary" id="saveBtn">保存</button>
-      </div>
+  <main id="list"></main>
+
+  <div class="scrim" id="scrim"></div>
+  <div class="sheet" id="sheet" role="dialog" aria-modal="true">
+    <div class="handle"></div>
+    <h2 id="sheetTitle"></h2>
+    <div id="formFields"></div>
+    <div class="ro" id="roFields"></div>
+    <div class="actions">
+      <button class="btn" id="cancelBtn">キャンセル</button>
+      <button class="btn primary" id="saveBtn">保存</button>
     </div>
   </div>
 
+  <div class="toast" id="toast"></div>
+
 <script>
+  var ROLE = { name: '銘柄名', price: '現在株価', ticker: 'Ticker', updated: '更新時刻' };
+  // Full-width note blocks, shown in this order. `man` = manual (editable).
+  var NOTES = [
+    { label: '購入検討理由', man: true },
+    { label: '購入理由',     man: true },
+    { label: 'AIコメント',   man: false },
+    { label: 'AI分析コメント', man: false }
+  ];
+  var LONG_EDIT = ['購入検討理由', '購入理由'];
+
   var state = { tab: null, headers: [], rows: [], editing: null, original: {} };
 
-  function setStatus(msg) { document.getElementById('status').textContent = msg || ''; }
+  function $(id) { return document.getElementById(id); }
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+  function isUrl(v) { return /^https?:\/\//i.test(String(v || '').trim()); }
+  function noteOf(label) {
+    for (var i = 0; i < NOTES.length; i++) if (NOTES[i].label === label) return NOTES[i];
+    return null;
+  }
+  function toast(msg) {
+    var t = $('toast'); t.textContent = msg; t.classList.add('show');
+    clearTimeout(toast._t); toast._t = setTimeout(function () { t.classList.remove('show'); }, 1800);
+  }
 
   function init() {
     google.script.run.withSuccessHandler(function (tabs) {
-      var box = document.getElementById('tabs');
+      var box = $('tabs');
       tabs.forEach(function (t, i) {
         var b = document.createElement('button');
-        b.className = 'tab' + (i === 0 ? ' active' : '');
+        b.className = 'seg' + (i === 0 ? ' active' : '');
         b.textContent = t;
         b.onclick = function () { selectTab(t, b); };
         box.appendChild(b);
@@ -85,78 +211,159 @@
   }
 
   function selectTab(tab, btn) {
+    if (state.tab === tab) return;
     state.tab = tab;
-    [].forEach.call(document.querySelectorAll('.tab'), function (e) { e.classList.remove('active'); });
+    [].forEach.call(document.querySelectorAll('.seg'), function (e) { e.classList.remove('active'); });
     if (btn) btn.classList.add('active');
     load();
   }
 
+  function skeleton() {
+    var h = '';
+    for (var i = 0; i < 4; i++) {
+      h += '<div class="skel">' +
+        '<div class="sk" style="height:18px;width:55%"></div>' +
+        '<div class="sk" style="height:12px;width:30%;margin-top:8px"></div>' +
+        '<div class="sk" style="height:48px;width:100%;margin-top:14px"></div></div>';
+    }
+    $('list').innerHTML = h;
+  }
+
   function load() {
-    setStatus('読み込み中…');
-    document.getElementById('grid').innerHTML = '';
+    skeleton();
+    $('count').textContent = ''; $('hint').textContent = '';
     google.script.run.withSuccessHandler(function (data) {
-      state.headers = data.headers;
-      state.rows = data.rows;
+      state.headers = data.headers; state.rows = data.rows;
       render();
-      setStatus(data.rows.length + ' 行');
+      $('count').textContent = data.rows.length + ' 銘柄';
+      $('hint').textContent = '✎ は編集できる項目';
     }).withFailureHandler(fail).getRows(state.tab);
   }
 
+  function valueHtml(val) {
+    if (isUrl(val)) {
+      var label = /kabutan/i.test(val) ? 'かぶたん' : 'リンク';
+      return '<a class="link" target="_blank" rel="noopener" href="' + esc(val) + '">' + label + '</a>';
+    }
+    return esc(val);
+  }
+
   function render() {
-    var t = document.getElementById('grid');
-    var thead = '<thead><tr><th></th>';
-    state.headers.forEach(function (h) {
-      thead += '<th class="' + (h.editable ? 'editable' : '') + '">' + esc(h.label) + '</th>';
-    });
-    thead += '</tr></thead>';
-    var body = '<tbody>';
+    var H = state.headers;
+    if (!state.rows.length) {
+      $('list').innerHTML = '<div class="empty"><div class="ico">🗂️</div>' +
+        '<div>表示できる銘柄がありません</div></div>';
+      return;
+    }
+    var out = '';
     state.rows.forEach(function (row, idx) {
-      body += '<tr><td><button class="edit-btn" data-i="' + idx + '">編集</button></td>';
-      row.cells.forEach(function (c, ci) {
-        var ed = state.headers[ci] && state.headers[ci].editable;
-        body += '<td class="' + (ed ? 'editable' : '') + '">' + esc(c) + '</td>';
+      var byLabel = {};
+      H.forEach(function (h, ci) { byLabel[h.label] = { val: row.cells[ci], ed: h.editable }; });
+      var name = byLabel[ROLE.name] ? byLabel[ROLE.name].val : '';
+      var ticker = byLabel[ROLE.ticker] ? byLabel[ROLE.ticker].val : '';
+      var price = byLabel[ROLE.price] ? byLabel[ROLE.price].val : '';
+      var stamp = byLabel[ROLE.updated] ? byLabel[ROLE.updated].val : '';
+
+      var c = '<div class="card">';
+      c += '<div class="card-top"><div><div class="name">' + esc(name || '(名称未設定)') + '</div>';
+      if (ticker) c += '<div class="ticker">' + esc(ticker) + '</div>';
+      c += '</div>';
+      if (String(price).trim()) c += '<div class="price">' + esc(price) + '</div>';
+      c += '</div>';
+
+      // metrics: everything with a value except name/price/ticker/updated and note fields
+      var chips = '';
+      H.forEach(function (h) {
+        var label = h.label, cell = byLabel[label];
+        if (!cell) return;
+        if (label === ROLE.name || label === ROLE.price || label === ROLE.ticker || label === ROLE.updated) return;
+        if (noteOf(label)) return;
+        if (!String(cell.val == null ? '' : cell.val).trim()) return;
+        chips += '<div class="metric' + (cell.ed ? ' ed' : '') + '">' +
+          '<span class="k">' + esc(label) + '</span>' +
+          '<span class="v">' + valueHtml(cell.val) + '</span></div>';
       });
-      body += '</tr>';
+      if (chips) c += '<div class="grid">' + chips + '</div>';
+
+      // notes (long text), in defined order
+      var notesHtml = '';
+      NOTES.forEach(function (n) {
+        var cell = byLabel[n.label];
+        if (!cell) return;
+        var v = String(cell.val == null ? '' : cell.val);
+        if (!v.trim()) return;
+        var nid = 'n' + idx + '_' + n.label.replace(/[^\w]/g, '');
+        var longish = v.length > 90;
+        notesHtml += '<div class="note' + (n.man ? ' man' : '') + '">' +
+          '<span class="k">' + esc(n.label) + '</span>' +
+          '<div class="body' + (longish ? ' clamp' : '') + '" id="' + nid + '">' + esc(v) + '</div>' +
+          (longish ? '<button class="more" data-t="' + nid + '">もっと見る</button>' : '') +
+          '</div>';
+      });
+      if (notesHtml) c += '<div class="notes">' + notesHtml + '</div>';
+
+      c += '<div class="card-foot">';
+      c += '<span class="stamp">' + (String(stamp).trim() ? '更新 ' + esc(stamp) : '') + '</span>';
+      c += '<button class="edit-btn" data-i="' + idx + '">編集</button>';
+      c += '</div></div>';
+      out += c;
     });
-    body += '</tbody>';
-    t.innerHTML = thead + body;
-    [].forEach.call(t.querySelectorAll('.edit-btn'), function (b) {
+    $('list').innerHTML = out;
+
+    [].forEach.call(document.querySelectorAll('.edit-btn'), function (b) {
       b.onclick = function () { openEdit(parseInt(b.getAttribute('data-i'), 10)); };
+    });
+    [].forEach.call(document.querySelectorAll('.more'), function (b) {
+      b.onclick = function () {
+        var body = $(b.getAttribute('data-t'));
+        var open = body.classList.toggle('clamp') === false;
+        b.textContent = open ? '閉じる' : 'もっと見る';
+      };
     });
   }
 
   function openEdit(idx) {
     var row = state.rows[idx];
-    state.editing = row.row;
-    state.original = {};
-    document.getElementById('panelTitle').textContent = state.tab + ' — 行 ' + row.row + ' を編集';
-    var form = document.getElementById('formFields');
-    var ro = document.getElementById('roFields');
-    form.innerHTML = '';
-    ro.innerHTML = '<div style="font-weight:600;margin-bottom:4px;">参考（編集不可）</div>';
-    state.headers.forEach(function (h, ci) {
-      var val = row.cells[ci] == null ? '' : row.cells[ci];
-      if (h.editable) {
-        state.original[h.label] = val;
-        var wrap = document.createElement('div');
-        wrap.className = 'fld';
-        var long = h.label === '購入検討理由' || h.label === '購入理由';
-        wrap.innerHTML = '<label>' + esc(h.label) + '</label>' +
-          (long ? '<textarea data-h="' + esc(h.label) + '">' + esc(val) + '</textarea>'
+    state.editing = row.row; state.original = {};
+    var byLabel = {};
+    state.headers.forEach(function (h, ci) { byLabel[h.label] = { val: row.cells[ci], ed: h.editable }; });
+    var name = byLabel[ROLE.name] ? byLabel[ROLE.name].val : '';
+    $('sheetTitle').innerHTML = esc(name || '行 ' + row.row) + ' <small>を編集</small>';
+
+    var form = $('formFields'); form.innerHTML = '';
+    state.headers.forEach(function (h) {
+      if (!h.editable) return;
+      var cell = byLabel[h.label];
+      var val = cell && cell.val != null ? cell.val : '';
+      state.original[h.label] = val;
+      var isLong = LONG_EDIT.indexOf(h.label) >= 0;
+      var wrap = document.createElement('div');
+      wrap.className = 'fld';
+      wrap.innerHTML = '<label>' + esc(h.label) + '</label>' +
+        (isLong ? '<textarea data-h="' + esc(h.label) + '">' + esc(val) + '</textarea>'
                 : '<input data-h="' + esc(h.label) + '" value="' + esc(val) + '">');
-        form.appendChild(wrap);
-      } else if (String(val).trim()) {
-        var d = document.createElement('div');
-        d.textContent = h.label + ': ' + val;
-        ro.appendChild(d);
-      }
+      form.appendChild(wrap);
     });
-    document.getElementById('overlay').classList.add('open');
+
+    // read-only reference (non-editable, non-empty)
+    var ro = $('roFields'); var rows = '';
+    state.headers.forEach(function (h) {
+      if (h.editable) return;
+      var cell = byLabel[h.label];
+      var v = cell && cell.val != null ? String(cell.val) : '';
+      if (!v.trim()) return;
+      rows += '<div class="row"><span class="rk">' + esc(h.label) + '</span>' +
+        '<span class="rv">' + valueHtml(v) + '</span></div>';
+    });
+    ro.innerHTML = rows ? '<div class="h">参考（自動更新・編集不可）</div>' + rows : '';
+    ro.style.display = rows ? 'block' : 'none';
+
+    openSheet();
   }
 
-  function closeEdit() {
-    document.getElementById('overlay').classList.remove('open');
-    state.editing = null;
+  function openSheet() { $('scrim').classList.add('open'); $('sheet').classList.add('open'); }
+  function closeSheet() {
+    $('scrim').classList.remove('open'); $('sheet').classList.remove('open'); state.editing = null;
   }
 
   function save() {
@@ -165,30 +372,26 @@
       var h = el.getAttribute('data-h');
       if (el.value !== state.original[h]) changed[h] = el.value;
     });
-    if (Object.keys(changed).length === 0) { closeEdit(); return; }
-    var btn = document.getElementById('saveBtn');
-    btn.disabled = true; btn.textContent = '保存中…';
+    if (Object.keys(changed).length === 0) { closeSheet(); return; }
+    var btn = $('saveBtn'); btn.disabled = true; btn.textContent = '保存中…';
     google.script.run.withSuccessHandler(function () {
       btn.disabled = false; btn.textContent = '保存';
-      closeEdit(); load();
+      closeSheet(); toast('保存しました'); load();
     }).withFailureHandler(function (e) {
       btn.disabled = false; btn.textContent = '保存';
-      alert('保存に失敗しました: ' + (e && e.message ? e.message : e));
+      toast('保存に失敗: ' + (e && e.message ? e.message : e));
     }).saveRow(state.tab, state.editing, changed);
   }
 
-  function fail(e) { setStatus('エラー: ' + (e && e.message ? e.message : e)); }
-  function esc(s) {
-    return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
-      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
-    });
+  function fail(e) {
+    $('list').innerHTML = '<div class="empty"><div class="ico">⚠️</div><div>' +
+      esc('読み込みエラー: ' + (e && e.message ? e.message : e)) + '</div></div>';
   }
 
-  document.getElementById('cancelBtn').onclick = closeEdit;
-  document.getElementById('saveBtn').onclick = save;
-  document.getElementById('overlay').addEventListener('click', function (e) {
-    if (e.target.id === 'overlay') closeEdit();
-  });
+  $('cancelBtn').onclick = closeSheet;
+  $('saveBtn').onclick = save;
+  $('scrim').onclick = closeSheet;
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeSheet(); });
   init();
 </script>
 </body>
