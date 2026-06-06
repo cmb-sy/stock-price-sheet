@@ -22,16 +22,17 @@ Two tracks feed every processed tab:
   column and writes back yfinance-native values (no scraping, no AI):
   - *holdings*: `現在株価` (current price), `配当利回り` (dividend yield, a percent
     number), `配当金` (total annual dividend = per-share dividend × your `取得株数`).
-  - *watchlist*: a richer set — price, PER/PBR, dividend yield, market cap, 3-month
-    max volume, 52-week high/low, EPS (TTM), EPS history + YoY, consensus targets,
-    analyst count, rating, and a write timestamp.
+  - *watchlist*: a richer set — price, PER/PBR, dividend yield, market cap, EPS
+    (TTM), EPS YoY, rating, next earnings date, a kabutan URL built from the
+    ticker, and a write timestamp.
 - **Track B — manual (Claude skills).** Two skills do the web research yfinance can't:
   - `.claude/skills/holdings-review` — for each holding, deep-researches over repeated
     loops, weighs it against **your own** `購入理由` / `短中長期` / `目標売却株価`, and
     writes a personalized verdict into `AIコメント`.
   - `.claude/skills/stock-research` — for each watched stock, researches the values
-    yfinance can't give (industry PER/PBR, an average target price, a theoretical
-    price) and writes those plus a synthesized verdict (`AI分析コメント`).
+    yfinance can't give (the industry/theme, industry PER/PBR, an analyst-consensus
+    target price, a theoretical price) and writes those plus a synthesized verdict
+    (`AI分析コメント`).
 
 Columns are mapped by **header name**, not by position (see each tab's `columns` map
 in `config.yaml`), so adding or moving a column in the sheet does not break anything;
@@ -112,8 +113,9 @@ values (anything unconfirmed is left blank / hedged in the text):
   (your purchase reason, horizon, target sell price, plus the Track A figures) and
   writes a personalized advisory comment into `AIコメント`.
 - **`.claude/skills/stock-research/`** — for the watchlist tabs. Researches the
-  values yfinance can't give (industry PER/PBR, an average target price, a theoretical
-  price) and writes them plus a synthesized verdict into `AI分析コメント`.
+  values yfinance can't give (the industry/theme, industry PER/PBR, an
+  analyst-consensus target price, a theoretical price) and writes them plus a
+  synthesized verdict into `AI分析コメント`.
 
 See each skill's `SKILL.md` and the project `CLAUDE.md` for the research discipline.
 

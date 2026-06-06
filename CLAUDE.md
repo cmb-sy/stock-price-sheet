@@ -83,14 +83,17 @@ A richer layout (the owner is evaluating whether to buy). Roles → headers:
 
 | Owner       | Headers                                                              |
 |-------------|---------------------------------------------------------------------|
-| manual      | 銘柄名, 購入検討株価, メモ, Ticker                                   |
-| **Track A** | 現在株価, PER, PBR, 配当利回り, 時価総額, 3ヶ月最大出来高, 52週高値, 52週安値, EPS(TTM), EPS実績(当期/1期前/2期前/3期前), EPS前年比(直近)%, EPS前年比(前期)%, 合意目標(平均/高/安), アナリスト数, レーティング, 更新時刻 |
-| **Track B** | 業界PER, 業界PBR, 平均目標株価, 理論株価, AI分析コメント            |
+| manual      | 銘柄名, 購入検討株価, 購入検討理由, Ticker                           |
+| **Track A** | かぶたんURL, 現在株価, PER, PBR, 配当利回り, 時価総額, 現在EPS, 年間EPS前年比（%）, レーティング, 次回決算日, 更新時刻 |
+| **Track B** | 業界やテーマ, 業界PER, 業界PBR, アナリスト予想株価, 理論株価, AI分析コメント |
 
-Track A derives EPS history from `income_stmt`, EPS YoY from it, 3ヶ月最大出来高 from
-`history("3mo")`, and the rest from `Ticker.info`. Industry PER/PBR, the
-target/theoretical prices, and the verdict are **not** available from yfinance, so
-Track A never touches the Track B columns. Track B = the **stock-research** skill.
+Track A derives the EPS YoY % from `income_stmt` annual EPS, 次回決算日 from
+`Ticker.calendar` ("Earnings Date"), かぶたんURL from the ticker string (no fetch),
+and the rest from `Ticker.info`. The theme, industry PER/PBR, the analyst/
+theoretical prices, and the verdict are **not** available from yfinance, so Track A
+never touches the Track B columns. Track B = the **stock-research** skill, whose
+`AIコメント`/`AI分析コメント` also judges whether the owner's 購入検討理由 still
+holds and whether the 購入検討株価 is a reasonable entry price.
 
 ### Shared rules
 
@@ -104,7 +107,7 @@ Track A never touches the Track B columns. Track B = the **stock-research** skil
 
 Two manual, owner-only skills do the web research Track A cannot:
 **holdings-review** (holdings tab → `AIコメント`) and **stock-research** (watchlist
-tabs → 業界PER/業界PBR/平均目標株価/理論株価/AI分析コメント). Both follow:
+tabs → 業界やテーマ/業界PER/業界PBR/アナリスト予想株価/理論株価/AI分析コメント). Both follow:
 
 - When researching, always reference **the latest information as of the time of
   research**. Do not rely on memory or stale cache; confirm the latest primary

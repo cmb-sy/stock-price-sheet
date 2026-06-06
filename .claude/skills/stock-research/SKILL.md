@@ -1,14 +1,14 @@
 ---
 name: stock-research
-description: For each watched stock in the 監視-* tabs, deep-research the market environment and the stock from many angles over repeated loops, then write the values yfinance cannot give (industry-average PER/PBR, an average target price, a theoretical price) and a Claude-synthesized per-stock verdict into the watchlist's Track B columns. Manual, owner-only run.
+description: For each watched stock in the 監視-* tabs, deep-research the market environment and the stock from many angles over repeated loops, then write the values yfinance cannot give (the industry/theme, industry-average PER/PBR, an analyst-consensus target price, a theoretical price) and a Claude-synthesized per-stock verdict into the watchlist's Track B columns. Manual, owner-only run.
 argument-hint: "(no args; processes every row that has a ticker in every watchlist tab)"
 ---
 
 For each watched stock (a candidate the owner does **not** yet hold), web-research
 it deeply and write the analysis Track A cannot produce. Track A (yfinance) already
-fills price, PER/PBR, dividend yield, market cap, EPS history/YoY, consensus targets,
-analyst count, and rating. This skill adds the **web-research** values and an
-opinionated verdict. It is a **manually launched, owner-only skill**.
+fills price, PER/PBR, market cap, 3-month max volume, 52-week high/low, EPS (TTM),
+EPS YoY, rating, and the next earnings date. This skill adds the **web-research**
+values and an opinionated verdict. It is a **manually launched, owner-only skill**.
 
 (Repo files are in English; the sheet — tab names, headers, data — stays in
 Japanese. Tab names like `監視-JP` / `監視-US` are sheet identifiers, kept as-is.)
@@ -22,16 +22,19 @@ Japanese. Tab names like `監視-JP` / `監視-US` are sheet identifiers, kept a
   column move in the sheet does not break this skill.
 - Inputs read for each stock (role → header label):
   - `my_target` 購入検討株価 — the price the owner is considering buying at.
+  - `consider_reason` 購入検討理由 — the owner's reason for considering it (the
+    thesis to test, as in holdings-review's 購入理由).
   - Track A figures: `current_price` 現在株価, `per` PER, `pbr` PBR,
-    `dividend_yield` 配当利回り, `market_cap` 時価総額, `eps_ttm` EPS(TTM),
-    `eps_yoy_latest`/`eps_yoy_prev` EPS前年比, `target_mean`/`target_high`/
-    `target_low` 合意目標, `num_analysts` アナリスト数, `rating` レーティング.
-  - The existing Track B values (to update): `industry_per`, `industry_pbr`,
-    `avg_target`, `theoretical`, `analysis_comment`.
-- **Only these five roles may be written** (`research_io.py write` refuses any other):
+    `dividend_yield` 配当利回り, `market_cap` 時価総額, `eps_ttm` 現在EPS,
+    `eps_yoy_latest` 年間EPS前年比（%）, `rating` レーティング,
+    `next_earnings` 次回決算日.
+  - The existing Track B values (to update): `theme`, `industry_per`,
+    `industry_pbr`, `analyst_target`, `theoretical`, `analysis_comment`.
+- **Only these six roles may be written** (`research_io.py write` refuses any other):
+  - `theme` 業界やテーマ — the industry/theme the stock belongs to (short label).
   - `industry_per` 業界PER — industry-average PER (single number).
   - `industry_pbr` 業界PBR — industry-average PBR (single number).
-  - `avg_target` 平均目標株価 — an average analyst/own target price (single number).
+  - `analyst_target` アナリスト予想株価 — analyst-consensus target price (single number).
   - `theoretical` 理論株価 — a theoretical fair price (single number).
   - `analysis_comment` AI分析コメント — Claude's synthesized per-stock verdict.
 
@@ -42,10 +45,14 @@ researched numbers. In Japanese, it should:
 
 1. **Open with a stance** on whether this is worth buying at/around the owner's
    購入検討株価 (buy now / wait / pass — your honest call).
-2. **Use the figures as evidence**: current price vs. the owner's 購入検討株価 and
-   vs. consensus targets, PER/PBR vs. the industry averages you researched, EPS
-   trend, dividend, and the market/sector backdrop.
-3. **Name the key risks** and **what to watch** (a concrete trigger to revisit).
+2. **Test the owner's own thesis**: engage the 購入検討理由 — does it still hold
+   given the latest facts? — and judge whether the 購入検討株価 is a *reasonable
+   entry price* (too high / about right / room to wait for lower), using current
+   price, your researched fair value (理論株価) and analyst target (アナリスト予想
+   株価), PER/PBR vs. the industry averages, EPS trend, dividend, and the
+   market/sector backdrop as evidence.
+3. **Name the key risks** and **what to watch** (a concrete trigger to revisit,
+   e.g. the 次回決算日).
 4. **Record the research date** in the text (there is no separate date column).
 
 ## Discipline (strict)
@@ -60,8 +67,8 @@ researched numbers. In Japanese, it should:
   price, or an event. If a number cannot be confirmed, **leave it blank** (do not
   send that role) and say so in the comment rather than guessing. Source URLs are
   not stored in the sheet; summarize the basis/reasoning in the comment instead.
-- `industry_per` / `industry_pbr` / `avg_target` / `theoretical` are each a **single
-  number**, not a list.
+- `industry_per` / `industry_pbr` / `analyst_target` / `theoretical` are each a
+  **single number**, not a list. `theme` is a short text label.
 - **Public-repo discipline**: this skill's output is handled only transiently in the
   local Claude session. Never leave tickers/prices/PII in committed files or public
   logs (see the repo-root `CLAUDE.md`). Reporting prints counts only.
@@ -104,8 +111,8 @@ roles you confirmed; omit any you could not confirm (leave them blank).
 ```bash
 echo '{"writes":[
   {"tab":"監視-JP","row":2,"fields":{
-     "industry_per":15.2,"industry_pbr":1.1,
-     "avg_target":3200,"theoretical":3500,
+     "theme":"<industry/theme>","industry_per":15.2,"industry_pbr":1.1,
+     "analyst_target":3200,"theoretical":3500,
      "analysis_comment":"<verdict + reasoning + research date>"}}
 ]}' | .venv/bin/python .claude/skills/stock-research/research_io.py write
 ```
@@ -117,7 +124,7 @@ could not be confirmed and was therefore left blank/hedged, state that.
 
 ## What not to do
 
-- Writing any role other than the five Track B roles (`research_io.py write` refuses it).
+- Writing any role other than the six Track B roles (`research_io.py write` refuses it).
 - One-shotting the research, or restating figures instead of forming a judgment.
-- Fabricating an industry PER/PBR, target, theoretical price, or event you could
-  not confirm — leave it blank instead.
+- Fabricating a theme, industry PER/PBR, target, theoretical price, or event you
+  could not confirm — leave it blank instead.

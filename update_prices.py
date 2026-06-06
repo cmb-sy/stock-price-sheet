@@ -10,13 +10,12 @@ numbers, and aggregate counts. See CLAUDE.md.
 Two tab types (config.yaml `tabs[].type`):
   holdings  -> 現在株価 = currentPrice, 配当利回り = dividendYield (a percent
                number, e.g. 2.34), 配当金 = dividendRate * 取得株数.
-  watchlist -> the rich yfinance metric set (price, PER/PBR, dividend yield,
-               market cap, 3-month max volume, 52-week high/low, EPS TTM, EPS
-               history + YoY, consensus targets, analyst count, rating) plus a
-               write timestamp.
+  watchlist -> the yfinance metric set (price, PER/PBR, dividend yield, market cap,
+               EPS TTM, EPS YoY, rating), the next earnings date, a kabutan URL
+               derived from the ticker, and a write timestamp.
 
 Track A writes only the roles it owns; the manual columns and the Track B columns
-(industry PER/PBR, target/theoretical price, AI comments) are never touched.
+(theme, industry PER/PBR, analyst/theoretical price, AI comments) are never touched.
 Columns are resolved by header name (see sheet.py), so a column move does not
 misdirect a write.
 """
@@ -48,21 +47,15 @@ WATCHLIST_INFO_FIELDS = {
     "pbr": "priceToBook",
     "dividend_yield": "dividendYield",
     "market_cap": "marketCap",
-    "wk52_high": "fiftyTwoWeekHigh",
-    "wk52_low": "fiftyTwoWeekLow",
     "eps_ttm": "trailingEps",
-    "target_mean": "targetMeanPrice",
-    "target_high": "targetHighPrice",
-    "target_low": "targetLowPrice",
-    "num_analysts": "numberOfAnalystOpinions",
     "rating": "recommendationKey",
 }
-WATCHLIST_EPS_ROLES = ("eps_fy0", "eps_fy1", "eps_fy2", "eps_fy3")
+# Derived (not raw Ticker.info): EPS YoY from income_stmt annual EPS, next earnings
+# date from ticker.calendar, and the kabutan URL built from the ticker string.
 WATCHLIST_DERIVED_ROLES = (
-    "vol_3mo_max",
-    *WATCHLIST_EPS_ROLES,
     "eps_yoy_latest",
-    "eps_yoy_prev",
+    "next_earnings",
+    "kabutan_url",
 )
 # Every role Track A may write into a watchlist tab (used to gate by what the tab
 # actually has a column for).
@@ -132,6 +125,35 @@ def _yoy(new: object, old: object) -> object:
     return round((new - old) / abs(old) * 100, 1)
 
 
+def _next_earnings(ticker: "yf.Ticker") -> object:
+    """Next earnings date (YYYY-MM-DD) from ticker.calendar; soonest upcoming if
+    several are listed, else the soonest available. 'N/A' when unknown."""
+    try:
+        cal = ticker.calendar or {}
+        raw = cal.get("Earnings Date")
+        if raw is None:
+            return "N/A"
+        dates = raw if isinstance(raw, (list, tuple)) else [raw]
+        dates = [d for d in dates if hasattr(d, "isoformat")]
+        if not dates:
+            return "N/A"
+        today = datetime.now().date()
+        upcoming = sorted(d for d in dates if d >= today)
+        chosen = upcoming[0] if upcoming else sorted(dates)[0]
+        return chosen.isoformat()
+    except Exception:
+        return "N/A"
+
+
+def _kabutan_url(symbol: str) -> str:
+    """Kabutan stock-page URL derived from the yfinance ticker. Tokyo tickers
+    (suffix .T) map to kabutan.jp by numeric code; everything else to the US site."""
+    s = symbol.strip()
+    if s.upper().endswith(".T"):
+        return f"https://kabutan.jp/stock/?code={s[:-2]}"
+    return f"https://us.kabutan.jp/stocks/{s.upper()}"
+
+
 def _resolve_price(ticker: "yf.Ticker", info: dict, hist) -> float | None:
     price = info.get("currentPrice")
     if not price:
@@ -192,9 +214,9 @@ def fetch_watchlist(symbol: str, roles: set[str]) -> dict | None:
             info = {}
 
         hist = None
-        if "vol_3mo_max" in roles or not info.get("currentPrice"):
+        if not info.get("currentPrice"):
             try:
-                hist = ticker.history(period="3mo")
+                hist = ticker.history(period="5d")
             except Exception:
                 hist = None
 
@@ -210,25 +232,15 @@ def fetch_watchlist(symbol: str, roles: set[str]) -> dict | None:
                 v = info.get(field)
                 out[role] = v if v is not None else "N/A"
 
-        if "vol_3mo_max" in roles:
-            v: object = "N/A"
-            if hist is not None and not hist.empty and "Volume" in hist.columns:
-                try:
-                    mx = int(hist["Volume"].max())
-                    v = mx if mx > 0 else "N/A"
-                except Exception:
-                    v = "N/A"
-            out["vol_3mo_max"] = v
+        if "eps_yoy_latest" in roles:
+            eps = _annual_eps(ticker, 2)
+            out["eps_yoy_latest"] = _yoy(eps[0], eps[1])
 
-        if roles & {*WATCHLIST_EPS_ROLES, "eps_yoy_latest", "eps_yoy_prev"}:
-            eps = _annual_eps(ticker, 4)
-            for i, role in enumerate(WATCHLIST_EPS_ROLES):
-                if role in roles:
-                    out[role] = eps[i] if eps[i] is not None else "N/A"
-            if "eps_yoy_latest" in roles:
-                out["eps_yoy_latest"] = _yoy(eps[0], eps[1])
-            if "eps_yoy_prev" in roles:
-                out["eps_yoy_prev"] = _yoy(eps[1], eps[2])
+        if "next_earnings" in roles:
+            out["next_earnings"] = _next_earnings(ticker)
+
+        if "kabutan_url" in roles:
+            out["kabutan_url"] = _kabutan_url(symbol)
 
         return out
     except Exception:  # noqa: BLE001 - logged by row, never by symbol

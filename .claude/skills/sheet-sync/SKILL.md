@@ -63,35 +63,29 @@ worksheet's `header` array.
 
 **watchlist tab roles** (e.g. `監視-JP`, `監視-US`):
 
-| role              | header label   | owner / role                          |
-|-------------------|----------------|---------------------------------------|
-| `ticker`          | Ticker         | manual; required                      |
-| `name`            | 銘柄名          | manual                                |
-| `my_target`       | 購入検討株価    | manual                                |
-| `current_price`   | 現在株価        | Track A: currentPrice                 |
-| `per`             | PER            | Track A: trailingPE                   |
-| `industry_per`    | 業界PER        | Track B (stock-research)              |
-| `pbr`             | PBR            | Track A: priceToBook                  |
-| `industry_pbr`    | 業界PBR        | Track B (stock-research)              |
-| `dividend_yield`  | 配当利回り      | Track A: dividendYield (percent)      |
-| `market_cap`      | 時価総額        | Track A: marketCap                    |
-| `vol_3mo_max`     | 3ヶ月最大出来高 | Track A: history(3mo) Volume max      |
-| `wk52_high`       | 52週高値        | Track A: fiftyTwoWeekHigh             |
-| `wk52_low`        | 52週安値        | Track A: fiftyTwoWeekLow              |
-| `eps_ttm`         | EPS(TTM)       | Track A: trailingEps                  |
-| `eps_fy0..3`      | EPS実績(...)   | Track A: income_stmt EPS              |
-| `eps_yoy_latest`  | EPS前年比(直近)%| Track A: computed                     |
-| `eps_yoy_prev`    | EPS前年比(前期)%| Track A: computed                     |
-| `target_mean`     | 合意目標(平均)  | Track A: targetMeanPrice              |
-| `target_high`     | 合意目標(高)    | Track A: targetHighPrice              |
-| `target_low`      | 合意目標(安)    | Track A: targetLowPrice               |
-| `num_analysts`    | アナリスト数    | Track A: numberOfAnalystOpinions      |
-| `rating`          | レーティング    | Track A: recommendationKey            |
-| `avg_target`      | 平均目標株価    | Track B (stock-research)              |
-| `theoretical`     | 理論株価        | Track B (stock-research)              |
-| `analysis_comment`| AI分析コメント  | Track B (stock-research) writes this  |
-| `memo`            | メモ            | manual                                |
-| `updated`         | 更新時刻        | Track A: write timestamp              |
+| role              | header label       | owner / role                          |
+|-------------------|--------------------|---------------------------------------|
+| `name`            | 銘柄名             | manual                                |
+| `kabutan_url`     | かぶたんURL        | Track A: built from the ticker        |
+| `theme`           | 業界やテーマ       | Track B (stock-research)              |
+| `my_target`       | 購入検討株価       | manual                                |
+| `consider_reason` | 購入検討理由       | manual; stock-research input          |
+| `current_price`   | 現在株価           | Track A: currentPrice                 |
+| `per`             | PER                | Track A: trailingPE                   |
+| `industry_per`    | 業界PER            | Track B (stock-research)              |
+| `pbr`             | PBR                | Track A: priceToBook                  |
+| `industry_pbr`    | 業界PBR            | Track B (stock-research)              |
+| `dividend_yield`  | 配当利回り         | Track A: dividendYield (percent)      |
+| `market_cap`      | 時価総額           | Track A: marketCap                    |
+| `eps_ttm`         | 現在EPS            | Track A: trailingEps                  |
+| `eps_yoy_latest`  | 年間EPS前年比（%） | Track A: computed from income_stmt    |
+| `rating`          | レーティング       | Track A: recommendationKey            |
+| `analyst_target`  | アナリスト予想株価 | Track B (stock-research)              |
+| `theoretical`     | 理論株価           | Track B (stock-research)              |
+| `next_earnings`   | 次回決算日         | Track A: ticker.calendar Earnings Date|
+| `analysis_comment`| AI分析コメント     | Track B (stock-research) writes this  |
+| `ticker`          | Ticker             | manual; required                      |
+| `updated`         | 更新時刻           | Track A: write timestamp              |
 
 A header in the sheet not in the relevant table is **unknown**: do not guess its
 owner — list it in the report and ask the user how it should be filled.

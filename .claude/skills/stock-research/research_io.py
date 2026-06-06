@@ -4,17 +4,18 @@ MANUAL use only.
 
 Subcommands:
   read-rows   Print JSON of every watched stock (a row with a ticker) across all
-              watchlist tabs, with the owner's 購入検討株価, the Track A figures
-              (price, PER/PBR, dividend yield, market cap, EPS, EPS YoY, consensus
-              targets, analyst count, rating), and the existing Track B values, so
+              watchlist tabs, with the owner's 購入検討株価 and 購入検討理由, the
+              Track A figures (price, PER/PBR, dividend yield, market cap, EPS, EPS
+              YoY, rating, next earnings date), and the existing Track B values, so
               the skill can decide what to (re)write.
   write       Read {"writes": [{"tab","row","fields":{role:value,...}}, ...]} from
               stdin and batch-write per tab. Only the Track B roles below are
               writable; any other role is refused.
 
 Track B roles this skill may write:
-  industry_per (業界PER) · industry_pbr (業界PBR) · avg_target (平均目標株価) ·
-  theoretical (理論株価) · analysis_comment (AI分析コメント)
+  theme (業界やテーマ) · industry_per (業界PER) · industry_pbr (業界PBR) ·
+  analyst_target (アナリスト予想株価) · theoretical (理論株価) ·
+  analysis_comment (AI分析コメント)
 
 This output is consumed by Claude locally during a manual run. It is never
 committed and must not be piped into the repo or into public Actions logs.
@@ -45,7 +46,9 @@ from sheet import (  # noqa: E402
 # Roles surfaced to the skill for each watched stock (read-only synthesis context).
 READ_ROLES = (
     "name",
+    "theme",
     "my_target",
+    "consider_reason",
     "current_price",
     "per",
     "pbr",
@@ -55,18 +58,21 @@ READ_ROLES = (
     "market_cap",
     "eps_ttm",
     "eps_yoy_latest",
-    "eps_yoy_prev",
-    "target_mean",
-    "target_high",
-    "target_low",
-    "num_analysts",
     "rating",
-    "avg_target",
+    "analyst_target",
     "theoretical",
+    "next_earnings",
     "analysis_comment",
 )
 # The only roles this skill may write.
-WRITE_ROLES = ("industry_per", "industry_pbr", "avg_target", "theoretical", "analysis_comment")
+WRITE_ROLES = (
+    "theme",
+    "industry_per",
+    "industry_pbr",
+    "analyst_target",
+    "theoretical",
+    "analysis_comment",
+)
 
 
 def _cell(row: list[str], col_idx: int) -> str:
