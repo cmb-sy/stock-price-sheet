@@ -26,6 +26,10 @@ var SPREADSHEET_ID = '1JkQ25PnxflO86axqflNw1HgAHAMVN4dyiQkj1mmFYgE';
 var HEADER_ROW = 1;
 var TABS = ['保有銘柄', '監視-JP', '監視-US'];
 
+// Header labels looked up by name (a column move does not break these).
+var LABEL_TICKER = 'Ticker';
+var LABEL_NAME = '銘柄名';
+
 // Manual columns the UI may edit, per tab. Everything else is read-only. Mirrors
 // the manual roles in config.yaml / CLAUDE.md; labels are generic, no tickers/PII.
 var MANUAL_HEADERS = {
@@ -75,6 +79,22 @@ function _sheet(tabName) {
   return sh;
 }
 
+// The tab's header row (row HEADER_ROW), as raw cell values.
+function _headerRow(sh) {
+  return sh.getRange(HEADER_ROW, 1, 1, sh.getLastColumn()).getValues()[0];
+}
+
+// Resolve a manual header label to its 0-based column index, refusing labels that
+// are not editable for this tab or not present in the header.
+function _resolveManualCol(manual, headerRow, label) {
+  if (manual.indexOf(label) < 0) {
+    throw new Error('編集不可（自動更新）列のため書き込みできません');
+  }
+  var col = headerRow.indexOf(label);
+  if (col < 0) throw new Error('ヘッダが見つかりません: ' + label);
+  return col;
+}
+
 function getTabs() {
   _guard();
   return TABS;
@@ -95,8 +115,8 @@ function getRows(tabName) {
   var headers = headerRow.map(function (h) {
     return { label: h, editable: manual.indexOf(h) >= 0 };
   });
-  var tickerIdx = headerRow.indexOf('Ticker');
-  var nameIdx = headerRow.indexOf('銘柄名');
+  var tickerIdx = headerRow.indexOf(LABEL_TICKER);
+  var nameIdx = headerRow.indexOf(LABEL_NAME);
   var rows = [];
   for (var r = HEADER_ROW; r < values.length; r++) {
     var cells = values[r];
@@ -123,18 +143,14 @@ function saveRow(tabName, rowNum, fields) {
   _guard();
   var manual = MANUAL_HEADERS[tabName] || [];
   var sh = _sheet(tabName);
-  var headerRow = sh.getRange(HEADER_ROW, 1, 1, sh.getLastColumn()).getValues()[0];
+  var headerRow = _headerRow(sh);
   rowNum = parseInt(rowNum, 10);
   if (!(rowNum > HEADER_ROW)) throw new Error('無効な行番号です');
 
   var written = 0;
   for (var label in fields) {
     if (!Object.prototype.hasOwnProperty.call(fields, label)) continue;
-    if (manual.indexOf(label) < 0) {
-      throw new Error('編集不可（自動更新）列のため書き込みできません');
-    }
-    var col = headerRow.indexOf(label);
-    if (col < 0) throw new Error('ヘッダが見つかりません: ' + label);
+    var col = _resolveManualCol(manual, headerRow, label);
     sh.getRange(rowNum, col + 1).setValue(_coerce(fields[label]));
     written++;
   }
@@ -153,24 +169,20 @@ function addRow(tabName, fields) {
   _guard();
   var manual = MANUAL_HEADERS[tabName] || [];
   var sh = _sheet(tabName);
-  var headerRow = sh.getRange(HEADER_ROW, 1, 1, sh.getLastColumn()).getValues()[0];
+  var headerRow = _headerRow(sh);
   var rowArr = [];
   for (var i = 0; i < headerRow.length; i++) rowArr.push('');
 
   var any = false;
   for (var label in fields) {
     if (!Object.prototype.hasOwnProperty.call(fields, label)) continue;
-    if (manual.indexOf(label) < 0) {
-      throw new Error('編集不可（自動更新）列のため書き込みできません');
-    }
-    var col = headerRow.indexOf(label);
-    if (col < 0) throw new Error('ヘッダが見つかりません: ' + label);
+    var col = _resolveManualCol(manual, headerRow, label);
     rowArr[col] = _coerce(fields[label]);
     any = true;
   }
   if (!any) throw new Error('登録する値がありません');
 
-  var nameCol = headerRow.indexOf('銘柄名');
+  var nameCol = headerRow.indexOf(LABEL_NAME);
   if (nameCol < 0 || !String(rowArr[nameCol]).trim()) throw new Error('銘柄名は必須です');
 
   sh.appendRow(rowArr);

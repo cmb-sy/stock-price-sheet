@@ -8,7 +8,9 @@
     :root {
       --bg: #f2f4f7; --card: #ffffff; --ink: #111827; --sub: #6b7280;
       --line: #e5e7eb; --accent: #2563eb; --accent-soft: #eff4ff;
-      --chip: #f3f4f6; --edit: #fff8e1; --edit-bd: #f0d68a;
+      --chip: #f3f4f6;
+      --pos: #067647; --neg: #d92d20; --ai-bg: #f5f8ff;
+      --navy: #0f172a;
       --shadow: 0 1px 2px rgba(16,24,40,.06), 0 4px 16px rgba(16,24,40,.06);
       --radius: 16px;
     }
@@ -40,24 +42,60 @@
     .meta { display: flex; justify-content: space-between; align-items: center;
       padding: 8px 2px 10px; color: var(--sub); font-size: 12px; }
 
-    /* ---- list / cards ---- */
-    main { padding: 4px 12px 24px; max-width: 720px; margin: 0 auto; }
+    /* ---- list ---- */
+    main { padding: 6px 12px 24px; max-width: 720px; margin: 0 auto; }
+
+    /* ---- portfolio summary (holdings tab) ---- */
+    .portfolio { background: var(--navy); color: #fff; border-radius: var(--radius);
+      padding: 16px 18px; margin: 8px 0 4px; animation: rise .25s ease both; }
+    .pf-lab { display: flex; align-items: center; gap: 6px;
+      color: #93c5fd; font-size: 10px; font-weight: 700; letter-spacing: .04em; }
+    .pf-lab .dot { width: 7px; height: 7px; border-radius: 999px; background: #93c5fd; }
+    .pf-big { font-size: 30px; font-weight: 800; letter-spacing: -.01em; margin: 8px 0 0;
+      font-variant-numeric: tabular-nums; }
+    .pf-stats { display: flex; margin-top: 12px; }
+    .pf-stat { flex: 1; padding: 4px 12px; }
+    .pf-stat:first-child { padding-left: 0; }
+    .pf-stat .k { color: #94a3b8; font-size: 10px; font-weight: 600; display: block; }
+    .pf-stat .v { font-size: 15px; font-weight: 700; margin-top: 3px;
+      font-variant-numeric: tabular-nums; color: #fff; }
+    .pf-stat .v.pos { color: #34d399; }
+    .pf-stat .v.neg { color: #f87171; }
+
+    /* ---- cards ---- */
     .card {
       background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
       padding: 14px 16px; margin: 10px 0; animation: rise .25s ease both;
     }
     @keyframes rise { from { opacity: 0; transform: translateY(6px); } }
-    .card-top { display: flex; align-items: baseline; gap: 10px; }
-    .name { font-size: 17px; font-weight: 700; flex: 1; min-width: 0;
+    .card-top { display: flex; align-items: flex-start; gap: 12px; }
+    .avatar { flex: 0 0 auto; width: 42px; height: 42px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--accent-soft); color: var(--accent);
+      font-size: 18px; font-weight: 800; }
+    .top-mid { flex: 1; min-width: 0; }
+    .name-row { display: flex; align-items: center; gap: 6px; min-width: 0; }
+    .name { font-size: 16px; font-weight: 700; min-width: 0;
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .price { font-size: 22px; font-weight: 800; letter-spacing: -.01em;
+    .pill { flex: 0 0 auto; font-size: 9px; font-weight: 700; border-radius: 4px;
+      padding: 1px 5px; background: var(--accent-soft); color: var(--accent); }
+    .pill.watch { background: var(--chip); color: var(--sub); }
+    .ticker { color: var(--sub); font-size: 11px; font-weight: 600;
+      letter-spacing: .02em; margin-top: 2px; overflow: hidden;
+      text-overflow: ellipsis; white-space: nowrap; }
+    .top-right { flex: 0 0 auto; text-align: right; }
+    .price { font-size: 20px; font-weight: 800; letter-spacing: -.01em;
       font-variant-numeric: tabular-nums; white-space: nowrap; }
-    .ticker { color: var(--sub); font-size: 12px; font-weight: 600;
-      letter-spacing: .03em; margin-top: 2px; }
 
-    .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px 14px;
+    /* theme banner */
+    .theme { margin: 12px 0 2px; }
+    .theme .k { color: var(--sub); font-size: 11px; font-weight: 600;
+      display: block; margin-bottom: 2px; }
+    .theme .v { font-size: 13px; font-weight: 700; color: #374151; word-break: break-word; }
+
+    /* metrics grid */
+    .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px 14px;
       margin: 12px 0 2px; }
-    @media (min-width: 480px) { .grid { grid-template-columns: repeat(3, 1fr); } }
     .metric { min-width: 0; }
     .metric .k { color: var(--sub); font-size: 11px; font-weight: 600;
       display: block; margin-bottom: 1px; }
@@ -66,70 +104,72 @@
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .metric .v .sub { color: var(--sub); font-weight: 600; font-size: 12px; }
     .metric.ed .k::after { content: " ✎"; color: var(--accent); font-weight: 400; }
-    .metric.ed .v { color: #92660a; }
-    .metric .v.pos { color: #067647; }
-    .metric .v.neg { color: #d92d20; }
+    .metric .v.pos { color: var(--pos); }
+    .metric .v.neg { color: var(--neg); }
     a.link { color: var(--accent); text-decoration: none; font-weight: 700; }
     a.link::after { content: " ↗"; font-size: 11px; }
 
-    /* full-width theme banner (業界やテーマ — long, wraps instead of clipping) */
-    .theme { margin: 12px 0 2px; }
-    .theme .k { color: var(--sub); font-size: 11px; font-weight: 600;
-      display: block; margin-bottom: 2px; }
-    .theme .v { font-size: 13.5px; font-weight: 700; color: #374151;
-      word-break: break-word; }
-
-    .notes { border-top: 1px dashed var(--line); margin-top: 12px; padding-top: 10px; }
-    .note { margin: 8px 0; }
-    .note .k { font-size: 11px; font-weight: 700; color: var(--accent);
-      display: inline-block; background: var(--accent-soft); padding: 1px 8px;
-      border-radius: 999px; margin-bottom: 4px; }
-    .note.man .k { color: #92660a; background: var(--edit); }
-    .note .body { font-size: 13.5px; color: #374151; white-space: pre-wrap;
-      word-break: break-word; }
-    .note .body.clamp {
-      display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
-      overflow: hidden;
-    }
-    /* AI verdict — give it room to read like prose */
-    .note.ai { background: linear-gradient(180deg, #f7faff, #f3f6ff);
-      border: 1px solid #e2e9fb; border-left: 3px solid var(--accent);
+    /* notes */
+    .notes { border-top: 1px dashed var(--line); margin-top: 12px; padding-top: 12px;
+      display: flex; flex-direction: column; gap: 10px; }
+    .note .k { font-size: 11px; font-weight: 700; display: inline-block;
+      background: var(--accent-soft); color: var(--accent);
+      padding: 1px 8px; border-radius: 999px; margin-bottom: 4px; }
+    .note.man .k { color: var(--sub); background: var(--chip); }
+    .note .body { font-size: 13px; color: #374151; white-space: pre-wrap; word-break: break-word; }
+    .note .body.clamp { display: -webkit-box; -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical; overflow: hidden; }
+    .note.ai { background: var(--ai-bg); border: 1px solid #e2e9fb;
       border-radius: 12px; padding: 10px 13px; }
     .note.ai .k { color: #fff; background: var(--accent); }
     .note.ai .k::before { content: "✦ "; }
-    .note.ai .body { font-size: 14px; line-height: 1.75; color: #1f2937; margin-top: 2px; }
+    .note.ai .body { font-size: 14px; line-height: 1.7; color: #1f2937; margin-top: 2px; }
     .note.ai .body.clamp { -webkit-line-clamp: 6; }
     .more { background: none; border: 0; color: var(--accent); font: inherit;
-      font-size: 12px; font-weight: 700; padding: 4px 0; cursor: pointer; }
+      font-size: 12px; font-weight: 700; padding: 2px 0; cursor: pointer; }
+    .ai-foot { display: flex; justify-content: flex-end; margin-top: 6px; }
+    .copy { background: none; border: 0; color: var(--accent); font: inherit;
+      font-size: 11px; font-weight: 700; cursor: pointer; padding: 2px 0; }
+    .copy::before { content: "⧉ "; }
 
-    /* glossary (用語解説) tab */
-    .gloss-sec { margin: 14px 0; }
-    .gloss-sec > h3 { font-size: 13px; font-weight: 800; margin: 0 0 8px;
-      color: var(--accent); letter-spacing: .02em; }
-    .gloss-card { background: var(--card); border-radius: var(--radius);
-      box-shadow: var(--shadow); padding: 6px 16px; }
-    .term { padding: 11px 0; border-bottom: 1px solid var(--line); }
-    .term:last-child { border-bottom: 0; }
-    .term .t { font-size: 14px; font-weight: 700; margin-bottom: 2px; }
-    .term .d { font-size: 13px; color: #4b5563; line-height: 1.6; }
-    /* stacked-fraction formula (no external math engine) */
-    .formula { display: flex; align-items: center; flex-wrap: wrap; gap: 7px;
-      font-size: 13px; color: #374151; margin: 5px 0 7px;
-      font-variant-numeric: tabular-nums; }
-    .formula .op { color: #6b7280; white-space: nowrap; }
-    .frac { display: inline-flex; flex-direction: column; text-align: center;
-      vertical-align: middle; }
-    .frac .num { padding: 0 8px 2px; border-bottom: 1.6px solid #9ca3af; }
-    .frac .den { padding: 2px 8px 0; }
-    .gloss-intro { color: var(--sub); font-size: 12.5px; padding: 4px 2px 8px; line-height: 1.6; }
-
+    /* card foot */
     .card-foot { display: flex; align-items: center; justify-content: space-between;
       margin-top: 12px; }
     .stamp { color: #9ca3af; font-size: 11px; font-variant-numeric: tabular-nums; }
     .edit-btn { border: 1px solid var(--line); background: var(--card); color: var(--ink);
       font: inherit; font-weight: 700; font-size: 13px; padding: 8px 16px;
       border-radius: 10px; cursor: pointer; transition: .15s; }
+    .edit-btn::before { content: "✎ "; }
     .edit-btn:active { transform: scale(.97); }
+
+    /* ---- glossary ---- */
+    .gloss-search { display: flex; align-items: center; gap: 8px; background: var(--card);
+      border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px;
+      margin: 8px 0 12px; box-shadow: var(--shadow); }
+    .gloss-search .ico { color: var(--sub); font-size: 14px; }
+    .gloss-search input { flex: 1; border: 0; outline: none; font: inherit; font-size: 14px;
+      background: transparent; color: var(--ink); }
+    .gloss-intro { color: var(--sub); font-size: 12.5px; padding: 0 2px 12px; line-height: 1.6; }
+    .gloss-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+    .gloss-chip { background: var(--card); border: 1px solid var(--line);
+      color: #374151; font-size: 12px; font-weight: 600;
+      border-radius: 999px; padding: 6px 12px; }
+    .gloss-sec { margin: 0 0 18px; }
+    .gloss-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+    .gloss-head h3 { font-size: 13px; font-weight: 800; margin: 0; color: var(--accent); letter-spacing: .02em; }
+    .gloss-head .cnt { color: var(--sub); font-size: 11px; }
+    .gloss-card { background: var(--card); border-radius: var(--radius);
+      box-shadow: var(--shadow); padding: 6px 16px; }
+    .term { padding: 11px 0; border-bottom: 1px solid var(--line); }
+    .term:last-child { border-bottom: 0; }
+    .term .t { font-size: 14px; font-weight: 700; }
+    .term .d { font-size: 13px; color: #4b5563; line-height: 1.6; margin-top: 3px; }
+    .formula { display: flex; align-items: center; flex-wrap: wrap; gap: 7px;
+      font-size: 13px; color: #374151; margin: 5px 0 4px; font-variant-numeric: tabular-nums; }
+    .formula .op { color: #6b7280; white-space: nowrap; }
+    .frac { display: inline-flex; flex-direction: column; text-align: center; vertical-align: middle; }
+    .frac .num { padding: 0 8px 2px; border-bottom: 1.6px solid #9ca3af; }
+    .frac .den { padding: 2px 8px 0; }
 
     /* ---- skeleton / empty ---- */
     .skel { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
@@ -148,25 +188,42 @@
       background: var(--card); border-radius: 20px 20px 0 0;
       max-width: 720px; margin: 0 auto; max-height: 92vh; overflow-y: auto;
       transform: translateY(100%); transition: transform .26s cubic-bezier(.32,.72,0,1);
-      padding: 8px 18px calc(20px + env(safe-area-inset-bottom));
+      padding: 8px 18px calc(16px + env(safe-area-inset-bottom));
       box-shadow: 0 -8px 40px rgba(16,24,40,.2); }
     .sheet.open { transform: translateY(0); }
     .handle { width: 40px; height: 4px; background: #d1d5db; border-radius: 999px;
       margin: 8px auto 6px; }
-    .sheet h2 { font-size: 16px; margin: 6px 0 14px; }
+    .mode-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px; }
+    .eyebrow { color: var(--accent); font-size: 10px; font-weight: 700; letter-spacing: .04em; }
+    .close-btn { width: 26px; height: 26px; border-radius: 999px; border: 0;
+      background: var(--chip); color: var(--sub); font-size: 15px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; }
+    .sheet h2 { font-size: 16px; margin: 6px 0 14px; font-weight: 700; }
     .sheet h2 small { color: var(--sub); font-weight: 600; font-size: 12px; }
+    .sec-head { color: var(--accent); font-size: 11px; font-weight: 800;
+      letter-spacing: .02em; margin-bottom: 10px; }
+    .progress { display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 12px; }
+    .progress .txt { color: var(--sub); font-size: 11px; }
+    .dots { display: flex; gap: 4px; }
+    .dot { width: 28px; height: 5px; border-radius: 999px; background: var(--line); transition: .2s; }
+    .dot.on { background: var(--accent); }
     .fld { margin-bottom: 14px; }
-    .fld label { display: block; font-weight: 700; font-size: 13px; margin-bottom: 6px; }
+    .fld label { display: block; font-weight: 700; font-size: 13px; }
+    .fld label .req { color: var(--neg); }
+    .fld .help { color: #9ca3af; font-size: 11px; margin: 2px 0 6px; }
     .fld input, .fld textarea { width: 100%; padding: 11px 12px;
       border: 1px solid var(--line); border-radius: 12px; font: inherit; font-size: 15px;
       background: #fafafa; transition: .15s; }
     .fld input:focus, .fld textarea:focus { outline: none; border-color: var(--accent);
       background: #fff; box-shadow: 0 0 0 3px var(--accent-soft); }
     .fld textarea { min-height: 92px; resize: vertical; line-height: 1.55; }
-    .ro { background: var(--chip); border-radius: 12px; padding: 10px 12px; margin: 6px 0 16px; }
-    .ro .h { font-size: 11px; font-weight: 700; color: var(--sub); margin-bottom: 6px; }
-    .ro .row { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0;
-      font-size: 13px; }
+    .ro { background: var(--chip); border-radius: 12px; padding: 12px; margin: 6px 0 16px; }
+    .ro .h { display: flex; align-items: center; gap: 6px; font-size: 11px;
+      font-weight: 700; color: var(--sub); margin-bottom: 4px; }
+    .ro .h::before { content: "🔒"; font-size: 11px; }
+    .ro .note-line { color: #9ca3af; font-size: 11px; margin-bottom: 8px; line-height: 1.5; }
+    .ro .row { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0; font-size: 13px; }
     .ro .row .rk { color: var(--sub); }
     .ro .row .rv { font-weight: 600; text-align: right; word-break: break-word; }
     .actions { position: sticky; bottom: 0; background: var(--card);
@@ -174,10 +231,12 @@
     .btn { flex: 1; padding: 13px; border-radius: 12px; font: inherit; font-weight: 700;
       font-size: 15px; cursor: pointer; border: 1px solid var(--line); background: #fff; }
     .btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .btn.primary::before { content: "✓ "; }
+    .btn.primary .kbd { font-size: 10px; font-weight: 500; opacity: .8; margin-left: 6px; }
     .btn:active { transform: scale(.98); }
     .btn[disabled] { opacity: .55; cursor: default; transform: none; }
 
-    /* ---- add-stock FAB (watchlist tabs only) ---- */
+    /* ---- add-stock FAB ---- */
     .fab { position: fixed; right: 16px; z-index: 25; display: none;
       bottom: calc(20px + env(safe-area-inset-bottom)); align-items: center; gap: 2px;
       background: var(--accent); color: #fff; border: 0; border-radius: 999px;
@@ -188,10 +247,11 @@
     .fab .plus { font-size: 18px; line-height: 1; margin-right: 2px; }
 
     .toast { position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 20px);
-      background: #111827; color: #fff; padding: 10px 18px; border-radius: 999px;
+      background: var(--navy); color: #fff; padding: 10px 18px; border-radius: 999px;
       font-size: 13px; font-weight: 600; opacity: 0; pointer-events: none;
       transition: .25s; z-index: 40; }
     .toast.show { opacity: 1; transform: translate(-50%, 0); }
+    .toast::before { content: "✓ "; color: #34d399; }
   </style>
 </head>
 <body>
@@ -206,12 +266,18 @@
   <div class="scrim" id="scrim"></div>
   <div class="sheet" id="sheet" role="dialog" aria-modal="true">
     <div class="handle"></div>
+    <div class="mode-row">
+      <span class="eyebrow" id="eyebrow">編集モード</span>
+      <button class="close-btn" id="closeBtn" aria-label="閉じる">×</button>
+    </div>
     <h2 id="sheetTitle"></h2>
+    <div class="sec-head">編集可能</div>
+    <div class="progress" id="progress"></div>
     <div id="formFields"></div>
     <div class="ro" id="roFields"></div>
     <div class="actions">
       <button class="btn" id="cancelBtn">キャンセル</button>
-      <button class="btn primary" id="saveBtn">保存</button>
+      <button class="btn primary" id="saveBtn">保存<span class="kbd">⌘⏎</span></button>
     </div>
   </div>
 
@@ -221,8 +287,10 @@
 <script>
   var ROLE = { name: '銘柄名', price: '現在株価', ticker: 'Ticker', updated: '更新時刻',
     theme: '業界やテーマ' };
+  // Holdings cost-basis roles, used to derive 評価額 / 評価損益 client-side.
+  var DERIVE = { acquire: '取得株価', shares: '取得株数', targetSell: '目標売却株価',
+    myTarget: '購入検討株価', analyst: 'アナリスト予想株価' };
   // Combined metric chips: a value column paired with its industry-average column.
-  // The chip shows "自社値（業界値）"; the paired industry column is not shown alone.
   var PAIRS = [
     { label: 'PER（業界）', own: 'PER', sub: '業界PER' },
     { label: 'PBR（業界）', own: 'PBR', sub: '業界PBR' }
@@ -230,9 +298,8 @@
   // Labels that must NOT render as standalone chips (shown elsewhere / combined).
   var SUPPRESS = { '業界PER': 1, '業界PBR': 1, '業界やテーマ': 1, 'PER': 1, 'PBR': 1 };
   // Metrics colored by sign (positive = green, negative = red).
-  var SIGNED = { '年間EPS前年比（%）': 1 };
-  // Full-width note blocks, shown in this order. `man` = manual (editable),
-  // `ai` = Claude verdict (gets the prose treatment).
+  var SIGNED = { '年間EPS前年比（%）': 1, '年初来安値との乖離率': 1 };
+  // Full-width note blocks, shown in this order.
   var NOTES = [
     { label: '購入検討理由', man: true },
     { label: '購入理由',     man: true },
@@ -240,48 +307,80 @@
     { label: 'AI分析コメント', man: false, ai: true }
   ];
   var LONG_EDIT = ['購入検討理由', '購入理由'];
+  // Short helper text under editable field labels (no schema dependency).
+  var HELP = {
+    '銘柄名': '正式名称', 'Ticker': 'yfinance 形式（例 7203.T, AAPL）',
+    '購入検討株価': '狙う購入価格', '購入検討理由': '検討の根拠をメモ',
+    '目標売却株価': '売却の目標価格', '取得株価': '購入時の株価', '取得株数': '保有株数',
+    '想定保有期間': '短期 / 中期 / 長期 など', '株主優待': '優待の内容',
+    '購入理由': '購入の根拠をメモ'
+  };
 
-  // Client-only "glossary" tab (no server data). Explains every column so the app
-  // is self-sufficient without opening the spreadsheet. Generic format only — no
-  // tickers/prices/PII.
+  // Client-only "glossary" tab. Each section carries a tag matching the data source.
   var GLOSSARY_TAB = '用語解説';
   var GLOSSARY = [
-    { sec: '自動取得（yfinance）', items: [
-      ['現在株価', '直近の取引価格。'],
-      ['年初来安値との乖離率', '現在値が年初来安値から何%上にあるか。0%に近いほど安値圏。',
+    { sec: 'バリュエーション（割安・割高を測る）', items: [
+      ['PER（株価収益率）',
+        '株価が1株利益(EPS)の何倍か。利益の何年分が織り込まれているかを示し、低いほど割安の目安。日本株は15倍前後が中立。低PERは成長期待の低さの裏返しのこともあるため、必ず業界平均（括弧内）と比べる。',
+        [{ n: '株価', d: '1株利益(EPS)' }]],
+      ['PBR（株価純資産倍率）',
+        '株価が1株純資産(BPS)の何倍か。1倍が解散価値の目安で、1倍割れは資産より安い評価（東証が改善を要請する水準）。ただし低PBRはROEの低さが原因のことも多い。',
+        [{ n: '株価', d: '1株純資産(BPS)' }]],
+      ['業界PER／業界PBR',
+        '同業他社の平均値。個別銘柄が割安か割高かは、市場全体より「同業比」で見るほうが精度が高い。カード上の括弧内の数字がこれ。'],
+      ['PEGレシオ',
+        'PERを利益成長率(%)で割った値。成長を加味した割安度で、1倍前後が妥当・1未満なら成長対比で割安。高PERでも高成長なら正当化されうる。',
+        [{ n: 'PER', d: '利益成長率(%)' }]],
+      ['配当利回り',
+        '株価に対する年間配当の割合。インカム収益の目安で、3%超は高配当の部類。ただし株価下落で見かけ上高くなる／減配リスクの裏返しのこともあり、配当性向と併せて確認する。',
+        [{ n: '年間配当', d: '株価' }, '× 100']]
+    ]},
+    { sec: '収益性・成長性・財務（稼ぐ力と健全性）', items: [
+      ['EPS（1株当たり利益）',
+        '純利益を発行済株式数で割った、1株が稼ぐ利益。PERの分母であり、自社株買いで株数が減ると上昇する。',
+        [{ n: '純利益', d: '発行済株式数' }]],
+      ['年間EPS前年比',
+        '通期EPSの前年比。利益の伸びを示し、プラス成長の持続が株価上昇の源泉。PEGレシオの分母にもなる。'],
+      ['ROE（自己資本利益率）',
+        '株主資本をどれだけ効率的に利益へ変えたか。8〜10%超が合格ラインで、継続的な高ROEは高いPBRを正当化する。',
+        [{ n: '純利益', d: '自己資本' }, '× 100']],
+      ['自己資本比率',
+        '総資産に占める自己資本の割合で、財務の安全度を示す。高いほど借入依存が低く不況に強い。適正水準は業種により異なる（金融業は低くても正常）。',
+        [{ n: '自己資本', d: '総資産' }, '× 100']],
+      ['時価総額',
+        '株価×発行済株式数で表す会社の規模。大型株は安定・高流動性、小型株は値動きが大きく成長余地も大きい。']
+    ]},
+    { sec: '株価水準・需給（買い時とリスクを測る）', items: [
+      ['年初来安値との乖離率',
+        '現在値が年初来安値から何%上にあるか。0%付近は安値圏、数字が大きいほど高値圏で、下値からの距離感をつかむ。',
         [{ n: '現在値 − 年初来安値', d: '年初来安値' }, '× 100']],
-      ['PER（業界）', '株価収益率。低いほど割安の目安。括弧内は業界平均。',
-        [{ n: '株価', d: '1株利益' }]],
-      ['PBR（業界）', '株価純資産倍率。1倍が解散価値の目安。括弧内は業界平均。',
-        [{ n: '株価', d: '1株純資産' }]],
-      ['配当利回り', '株価に対する年間配当の割合（%）。',
-        [{ n: '年間配当', d: '株価' }, '× 100']],
-      ['配当金', '1株配当×保有株数（年間。保有銘柄のみ）。'],
-      ['時価総額', '株価×発行済株式数。億円・円換算で統一。'],
-      ['現在EPS', '1株当たり利益（直近12ヶ月）。'],
-      ['年間EPS前年比（%）', '通期EPSの前年比。利益の伸び。'],
-      ['レーティング', 'アナリスト推奨（strong_buy〜sell）。'],
-      ['次回決算日', '次の決算発表予定日。'],
-      ['かぶたんURL', '外部の銘柄情報ページ（かぶたん）へのリンク。']
+      ['出来高',
+        '一定期間に売買が成立した株数。多いほど流動性が高く約定しやすい。急増は相場の転換サインになることがある。'],
+      ['信用倍率',
+        '信用買い残を売り残で割った値。1倍超は買い長で将来の売り圧力、1倍割れは取組良好で踏み上げ（急騰）余地を示す。',
+        [{ n: '信用買い残', d: '信用売り残' }]],
+      ['レーティング',
+        '証券会社アナリストの投資判断（strong_buy〜sell）。コンセンサスの方向感をつかめるが、遅行性や利益相反があり鵜呑みは禁物。']
     ]},
-    { sec: 'AI分析（Claudeのリサーチ）', items: [
-      ['業界やテーマ', 'その銘柄が属する業界・テーマ。'],
-      ['業界PER／業界PBR', '業界平均のPER／PBR。割安・割高の比較基準。'],
-      ['アナリスト予想株価', 'アナリストのコンセンサス目標株価。'],
-      ['理論株価', 'Claudeが算定した理論的な妥当株価。'],
-      ['AI分析コメント／AIコメント', '結論・根拠・リスク・スタンスを含む総合判断。']
-    ]},
-    { sec: '手入力（オーナー）', items: [
-      ['銘柄名／Ticker', '銘柄名と、yfinance形式のティッカー。'],
-      ['取得株価／取得株数', '保有銘柄の購入記録。'],
-      ['想定保有期間／目標売却株価／購入理由', '保有銘柄の方針と売却目標、購入の根拠。'],
-      ['株主優待', '保有銘柄の株主優待の内容。'],
-      ['購入検討株価／購入検討理由', '監視銘柄で狙う価格と、検討の根拠。']
+    { sec: '目標株価との距離（出口とエントリーの判断）', items: [
+      ['アナリスト予想株価',
+        'アナリストのコンセンサス目標株価。現在値との差が上値余地となる。前提が崩れると下方修正される点に注意。'],
+      ['理論株価',
+        '利益・資産・成長率などから算定した妥当株価。市場価格との乖離が投資妙味だが、算定前提に強く依存する。'],
+      ['予想乖離率',
+        'アナリスト予想株価と現在株価の差。プラスが大きいほど上値余地が大きい＝割安と見なせる。',
+        [{ n: 'アナリスト予想株価 − 現在株価', d: '現在株価' }, '× 100']],
+      ['目標との乖離率',
+        '現在株価と自分の目標売却株価の差。プラスは目標を超過、マイナスはまだ目標に届いていないことを示す（保有銘柄）。',
+        [{ n: '現在株価 − 目標売却株価', d: '目標売却株価' }, '× 100']],
+      ['購入検討との乖離率',
+        '現在株価と自分の購入検討株価の差。マイナスは狙い値より安い＝買い場が近いことを示す（監視銘柄）。',
+        [{ n: '現在株価 − 購入検討株価', d: '購入検討株価' }, '× 100']]
     ]}
   ];
 
   var state = { tab: null, headers: [], rows: [], editing: null, original: {},
-    holdingsTab: null };
+    holdingsTab: null, required: [], noteText: {} };
 
   function $(id) { return document.getElementById(id); }
   function esc(s) {
@@ -299,11 +398,36 @@
     clearTimeout(toast._t); toast._t = setTimeout(function () { t.classList.remove('show'); }, 1800);
   }
 
+  // Parse a display string ("3,584", "¥1,200", "12.3%") to a number, or null.
+  function parseNum(v) {
+    var s = String(v == null ? '' : v).replace(/[^0-9.\-]/g, '');
+    if (s === '' || s === '-' || s === '.') return null;
+    var n = parseFloat(s);
+    return isNaN(n) ? null : n;
+  }
+  function yen(n) { return '¥' + Math.round(n).toLocaleString('ja-JP'); }
+  function yenSigned(n) {
+    return (n >= 0 ? '+' : '−') + '¥' + Math.abs(Math.round(n)).toLocaleString('ja-JP');
+  }
+  function pctSigned(n) { return (n >= 0 ? '+' : '') + n.toFixed(1) + '%'; }
+  function signCls(n) { return n > 0 ? 'pos' : (n < 0 ? 'neg' : ''); }
+
+  function firstChar(s) { s = String(s || '').trim(); return s ? Array.from(s)[0] : '?'; }
+
+  function copyText(t) {
+    try {
+      var ta = document.createElement('textarea');
+      ta.value = t; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.focus(); ta.select();
+      var ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      toast(ok ? 'コピーしました' : 'コピーできませんでした');
+    } catch (e) { toast('コピーできませんでした'); }
+  }
+
   function init() {
     google.script.run.withSuccessHandler(function (tabs) {
       var box = $('tabs');
-      // The first tab is the holdings tab (config order); the rest are watchlist tabs,
-      // which are the only ones that allow registering a new stock.
       state.holdingsTab = tabs.length ? tabs[0] : null;
       tabs.forEach(function (t, i) {
         var b = document.createElement('button');
@@ -326,8 +450,6 @@
     state.tab = tab;
     [].forEach.call(document.querySelectorAll('.seg'), function (e) { e.classList.remove('active'); });
     if (btn) btn.classList.add('active');
-    // Hide the FAB on every switch; load() re-shows it once the new tab's headers are
-    // loaded, so the add form is never built from the previous tab's headers.
     $('addFab').classList.remove('show');
     if (tab === GLOSSARY_TAB) { renderGlossary(); return; }
     load();
@@ -335,22 +457,47 @@
 
   function renderGlossary() {
     $('count').textContent = '用語解説'; $('hint').textContent = '';
-    var out = '<div class="gloss-intro">各シートの列の意味です。Excelを開かなくても、' +
-      'カードに出る項目はここで確認できます。</div>';
+    var out = '<div class="gloss-search"><span class="ico">⌕</span>' +
+      '<input id="glossQ" type="text" placeholder="用語を検索（例: PEG、業界PER）" ' +
+      'autocomplete="off" aria-label="用語を検索"></div>';
+    out += '<div class="gloss-intro">投資判断に使う指標の意味と読み方のメモです。' +
+      '割安度・収益性・需給・目標株価の観点で整理しています。</div>';
+    out += '<div class="gloss-chips">';
     GLOSSARY.forEach(function (g) {
-      out += '<div class="gloss-sec"><h3>' + esc(g.sec) + '</h3><div class="gloss-card">';
-      g.items.forEach(function (it) {
+      var label = g.sec.replace(/（.*$/, '') + ' ' + g.items.length;
+      out += '<span class="gloss-chip">' + esc(label) + '</span>';
+    });
+    out += '</div><div id="glossBody"></div>';
+    $('list').innerHTML = out;
+    var q = $('glossQ');
+    q.addEventListener('input', function () { renderGlossBody(q.value); });
+    renderGlossBody('');
+  }
+
+  function renderGlossBody(query) {
+    var q = String(query || '').trim().toLowerCase();
+    var out = '';
+    GLOSSARY.forEach(function (g) {
+      var items = g.items.filter(function (it) {
+        if (!q) return true;
+        return (it[0] + ' ' + it[1]).toLowerCase().indexOf(q) >= 0;
+      });
+      if (!items.length) return;
+      out += '<div class="gloss-sec"><div class="gloss-head">' +
+        '<h3>' + esc(g.sec) + '</h3>' +
+        '<span class="cnt">' + items.length + ' 項目</span></div>' +
+        '<div class="gloss-card">';
+      items.forEach(function (it) {
         var f = it[2] ? formulaHtml(it[2]) : '';
         out += '<div class="term"><div class="t">' + esc(it[0]) + '</div>' +
           f + '<div class="d">' + esc(it[1]) + '</div></div>';
       });
       out += '</div></div>';
     });
-    $('list').innerHTML = out;
+    if (!out) out = '<div class="empty"><div class="ico">🔍</div><div>該当する用語がありません</div></div>';
+    $('glossBody').innerHTML = out;
   }
 
-  // Build a stacked-fraction formula from tokens. A string token is an operator/
-  // term shown inline; a { n, d } token renders as numerator over denominator.
   function formulaHtml(tokens) {
     var h = '<div class="formula">';
     tokens.forEach(function (tk) {
@@ -383,85 +530,186 @@
       render();
       $('count').textContent = data.rows.length + ' 銘柄';
       $('hint').textContent = '✎ は編集できる項目';
-      // Show the add-stock FAB only on watchlist tabs (not the holdings tab), now that
-      // this tab's headers are loaded.
       $('addFab').classList.toggle('show', state.tab !== state.holdingsTab);
     }).withFailureHandler(fail).getRows(state.tab);
   }
 
   function valueHtml(val) {
     if (isUrl(val)) {
-      var label = /kabutan/i.test(val) ? 'かぶたん' : 'リンク';
+      var label = /kabutan/i.test(val) ? 'かぶたん' : /minkabu/i.test(val) ? 'みんかぶ' : 'リンク';
       return '<a class="link" target="_blank" rel="noopener" href="' + esc(val) + '">' + label + '</a>';
     }
     return esc(val);
   }
 
+  // {label: {val, ed}} for a row's cells, keyed by header label.
+  function byLabelOf(headers, cells) {
+    var byLabel = {};
+    headers.forEach(function (h, ci) { byLabel[h.label] = { val: cells[ci], ed: h.editable }; });
+    return byLabel;
+  }
+
+  function fieldHtml(label, val, required) {
+    var isLong = LONG_EDIT.indexOf(label) >= 0;
+    var help = HELP[label] ? '<div class="help">' + esc(HELP[label]) + '</div>' : '';
+    var req = required ? ' <span class="req">*</span>' : '';
+    return '<label>✎ ' + esc(label) + req + '</label>' + help +
+      (isLong ? '<textarea data-h="' + esc(label) + '">' + esc(val) + '</textarea>'
+              : '<input data-h="' + esc(label) + '" value="' + esc(val) + '">');
+  }
+
+  function errMsg(e) { return e && e.message ? e.message : e; }
+
+  function runSave(busyMsg, okMsg, errPrefix, invoke) {
+    var btn = $('saveBtn'); btn.disabled = true; btn.textContent = busyMsg;
+    var runner = google.script.run.withSuccessHandler(function () {
+      btn.disabled = false; btn.innerHTML = '保存<span class="kbd">⌘⏎</span>';
+      closeSheet(); toast(okMsg); load();
+    }).withFailureHandler(function (e) {
+      btn.disabled = false; btn.innerHTML = '保存<span class="kbd">⌘⏎</span>';
+      toast(errPrefix + errMsg(e));
+    });
+    invoke(runner);
+  }
+
+  // Derived metric chips computed client-side from real columns. Returns
+  // [{ k, html, cls }]. Holdings derive 評価額/評価損益; watchlist derive 乖離率.
+  function derivedMetrics(byLabel, isHoldings) {
+    function num(label) { return byLabel[label] ? parseNum(byLabel[label].val) : null; }
+    var out = [];
+    var cur = num(ROLE.price);
+    if (isHoldings) {
+      var acq = num(DERIVE.acquire), sh = num(DERIVE.shares), tgt = num(DERIVE.targetSell);
+      if (cur != null && sh != null) out.push({ k: '評価額', html: esc(yen(cur * sh)) });
+      if (cur != null && acq != null && sh != null) {
+        var pl = (cur - acq) * sh, plr = (cur - acq) / acq * 100;
+        out.push({ k: '評価損益額', html: esc(yenSigned(pl)), cls: signCls(pl) });
+        out.push({ k: '評価損益率', html: esc(pctSigned(plr)), cls: signCls(plr) });
+      }
+      if (cur != null && tgt != null) {
+        var td = (cur - tgt) / tgt * 100;
+        out.push({ k: '目標との乖離率', html: esc(pctSigned(td)), cls: signCls(td) });
+      }
+    } else {
+      var my = num(DERIVE.myTarget), an = num(DERIVE.analyst);
+      if (cur != null && my != null) {
+        var md = (cur - my) / my * 100;
+        out.push({ k: '購入検討との乖離率', html: esc(pctSigned(md)), cls: signCls(md) });
+      }
+      if (cur != null && an != null) {
+        var ad = (an - cur) / cur * 100;
+        out.push({ k: '予想乖離率', html: esc(pctSigned(ad)), cls: signCls(ad) });
+      }
+    }
+    return out;
+  }
+
+  // Standalone (non-paired, non-note, non-role) column chips. Returns [{k,html,cls,ed}].
+  function columnMetrics(H, byLabel) {
+    var out = [];
+    PAIRS.forEach(function (p) {
+      var own = byLabel[p.own], sub = byLabel[p.sub];
+      var ov = own && own.val != null ? String(own.val).trim() : '';
+      var sv = sub && sub.val != null ? String(sub.val).trim() : '';
+      if (!ov && !sv) return;
+      var k = sv ? p.label : p.own;
+      var html = esc(ov || '—') + (sv ? ' <span class="sub">(' + esc(sv) + ')</span>' : '');
+      out.push({ k: k, html: html, ed: own && own.ed });
+    });
+    H.forEach(function (h) {
+      var label = h.label, cell = byLabel[label];
+      if (!cell) return;
+      if (label === ROLE.name || label === ROLE.price || label === ROLE.ticker ||
+          label === ROLE.updated) return;
+      if (SUPPRESS[label] || noteOf(label)) return;
+      var v = String(cell.val == null ? '' : cell.val).trim();
+      if (!v) return;
+      var cls = '';
+      if (SIGNED[label]) cls = signCls(parseNum(v) || 0);
+      out.push({ k: label, html: valueHtml(cell.val), cls: cls, ed: cell.ed });
+    });
+    return out;
+  }
+
+  function metricCellHtml(m) {
+    return '<div class="metric' + (m.ed ? ' ed' : '') + '">' +
+      '<span class="k">' + esc(m.k) + '</span>' +
+      '<span class="v ' + (m.cls || '') + '">' + m.html + '</span></div>';
+  }
+
+  function portfolioHtml() {
+    var totVal = 0, totPL = 0, totCost = 0, hasVal = false, hasCost = false;
+    state.rows.forEach(function (row) {
+      var byLabel = byLabelOf(state.headers, row.cells);
+      function num(label) { return byLabel[label] ? parseNum(byLabel[label].val) : null; }
+      var cur = num(ROLE.price), acq = num(DERIVE.acquire), sh = num(DERIVE.shares);
+      if (cur != null && sh != null) { totVal += cur * sh; hasVal = true; }
+      if (cur != null && acq != null && sh != null) {
+        totPL += (cur - acq) * sh; totCost += acq * sh; hasCost = true;
+      }
+    });
+    if (!hasVal) return '';
+    var plr = hasCost && totCost ? totPL / totCost * 100 : null;
+    var h = '<div class="portfolio">' +
+      '<div class="pf-lab"><span class="dot"></span>ポートフォリオ</div>' +
+      '<div class="pf-big">' + esc(yen(totVal)) + '</div>' +
+      '<div class="pf-stats">';
+    if (hasCost) {
+      h += '<div class="pf-stat"><span class="k">累計損益</span>' +
+        '<div class="v ' + signCls(totPL) + '">' + esc(yenSigned(totPL)) + '</div></div>';
+      h += '<div class="pf-stat"><span class="k">累計損益率</span>' +
+        '<div class="v ' + signCls(plr) + '">' + esc(pctSigned(plr)) + '</div></div>';
+    }
+    h += '<div class="pf-stat"><span class="k">銘柄数</span>' +
+      '<div class="v">' + state.rows.length + '</div></div>';
+    h += '</div></div>';
+    return h;
+  }
+
   function render() {
     var H = state.headers;
+    state.noteText = {};
     if (!state.rows.length) {
       $('list').innerHTML = '<div class="empty"><div class="ico">🗂️</div>' +
         '<div>表示できる銘柄がありません</div></div>';
       return;
     }
-    var out = '';
+    var isHoldings = state.tab === state.holdingsTab;
+    var out = isHoldings ? portfolioHtml() : '';
+
     state.rows.forEach(function (row, idx) {
-      var byLabel = {};
-      H.forEach(function (h, ci) { byLabel[h.label] = { val: row.cells[ci], ed: h.editable }; });
+      var byLabel = byLabelOf(H, row.cells);
       var name = byLabel[ROLE.name] ? byLabel[ROLE.name].val : '';
       var ticker = byLabel[ROLE.ticker] ? byLabel[ROLE.ticker].val : '';
       var price = byLabel[ROLE.price] ? byLabel[ROLE.price].val : '';
       var stamp = byLabel[ROLE.updated] ? byLabel[ROLE.updated].val : '';
 
-      var c = '<div class="card">';
-      c += '<div class="card-top"><div><div class="name">' + esc(name || '(名称未設定)') + '</div>';
+      var ch = firstChar(name || ticker || '?');
+      var c = '<div class="card"><div class="card-top">';
+      c += '<div class="avatar">' + esc(ch) + '</div>';
+      c += '<div class="top-mid"><div class="name-row">' +
+        '<span class="name">' + esc(name || '(名称未設定)') + '</span>' +
+        '<span class="pill' + (isHoldings ? '' : ' watch') + '">' +
+        (isHoldings ? '保有' : '監視') + '</span></div>';
       if (ticker) c += '<div class="ticker">' + esc(ticker) + '</div>';
       c += '</div>';
+      c += '<div class="top-right">';
       if (String(price).trim()) c += '<div class="price">' + esc(price) + '</div>';
-      c += '</div>';
+      c += '</div></div>';
 
-      // theme (業界やテーマ) — full width so a long label wraps instead of clipping
       var theme = byLabel[ROLE.theme];
       if (theme && String(theme.val == null ? '' : theme.val).trim()) {
         c += '<div class="theme"><span class="k">' + esc(ROLE.theme) + '</span>' +
           '<div class="v">' + esc(theme.val) + '</div></div>';
       }
 
-      // metrics grid
-      var chips = '';
-      // combined "自社値（業界平均）" chips first
-      PAIRS.forEach(function (p) {
-        var own = byLabel[p.own], sub = byLabel[p.sub];
-        var ov = own && own.val != null ? String(own.val).trim() : '';
-        var sv = sub && sub.val != null ? String(sub.val).trim() : '';
-        if (!ov && !sv) return;
-        // "PER（業界）" only when an industry value exists; else plain "PER".
-        var k = sv ? p.label : p.own;
-        var v = esc(ov || '—') + (sv ? ' <span class="sub">(' + esc(sv) + ')</span>' : '');
-        chips += '<div class="metric"><span class="k">' + esc(k) + '</span>' +
-          '<span class="v">' + v + '</span></div>';
-      });
-      // remaining single-value chips
-      H.forEach(function (h) {
-        var label = h.label, cell = byLabel[label];
-        if (!cell) return;
-        if (label === ROLE.name || label === ROLE.price || label === ROLE.ticker || label === ROLE.updated) return;
-        if (SUPPRESS[label]) return;
-        if (noteOf(label)) return;
-        var v = String(cell.val == null ? '' : cell.val).trim();
-        if (!v) return;
-        var sign = '';
-        if (SIGNED[label]) {
-          var n = parseFloat(v.replace(/[^0-9.\-]/g, ''));
-          sign = n < 0 ? ' neg' : (n > 0 ? ' pos' : '');
-        }
-        chips += '<div class="metric' + (cell.ed ? ' ed' : '') + '">' +
-          '<span class="k">' + esc(label) + '</span>' +
-          '<span class="v' + sign + '">' + valueHtml(cell.val) + '</span></div>';
-      });
-      if (chips) c += '<div class="grid">' + chips + '</div>';
+      var metrics = columnMetrics(H, byLabel).concat(derivedMetrics(byLabel, isHoldings));
+      if (metrics.length) {
+        c += '<div class="grid">';
+        metrics.forEach(function (m) { c += metricCellHtml(m); });
+        c += '</div>';
+      }
 
-      // notes (long text), in defined order
       var notesHtml = '';
       NOTES.forEach(function (n) {
         var cell = byLabel[n.label];
@@ -469,13 +717,17 @@
         var v = String(cell.val == null ? '' : cell.val);
         if (!v.trim()) return;
         var nid = 'n' + idx + '_' + n.label.replace(/[^\w]/g, '');
+        state.noteText[nid] = v;
         var longish = v.length > (n.ai ? 200 : 90);
         var cls = 'note' + (n.man ? ' man' : '') + (n.ai ? ' ai' : '');
         notesHtml += '<div class="' + cls + '">' +
           '<span class="k">' + esc(n.label) + '</span>' +
           '<div class="body' + (longish ? ' clamp' : '') + '" id="' + nid + '">' + esc(v) + '</div>' +
-          (longish ? '<button class="more" data-t="' + nid + '">もっと見る</button>' : '') +
-          '</div>';
+          (longish ? '<button class="more" data-t="' + nid + '">もっと見る</button>' : '');
+        if (n.ai) {
+          notesHtml += '<div class="ai-foot"><button class="copy" data-c="' + nid + '">コピー</button></div>';
+        }
+        notesHtml += '</div>';
       });
       if (notesHtml) c += '<div class="notes">' + notesHtml + '</div>';
 
@@ -497,32 +749,31 @@
         b.textContent = open ? '閉じる' : 'もっと見る';
       };
     });
+    [].forEach.call(document.querySelectorAll('.copy'), function (b) {
+      b.onclick = function () { copyText(state.noteText[b.getAttribute('data-c')] || ''); };
+    });
   }
 
-  function openEdit(idx) {
-    var row = state.rows[idx];
-    state.editing = row.row; state.original = {};
-    var byLabel = {};
-    state.headers.forEach(function (h, ci) { byLabel[h.label] = { val: row.cells[ci], ed: h.editable }; });
-    var name = byLabel[ROLE.name] ? byLabel[ROLE.name].val : '';
-    $('sheetTitle').innerHTML = esc(name || '行 ' + row.row) + ' <small>を編集</small>';
-
-    var form = $('formFields'); form.innerHTML = '';
-    state.headers.forEach(function (h) {
-      if (!h.editable) return;
-      var cell = byLabel[h.label];
-      var val = cell && cell.val != null ? cell.val : '';
-      state.original[h.label] = val;
-      var isLong = LONG_EDIT.indexOf(h.label) >= 0;
-      var wrap = document.createElement('div');
-      wrap.className = 'fld';
-      wrap.innerHTML = '<label>' + esc(h.label) + '</label>' +
-        (isLong ? '<textarea data-h="' + esc(h.label) + '">' + esc(val) + '</textarea>'
-                : '<input data-h="' + esc(h.label) + '" value="' + esc(val) + '">');
-      form.appendChild(wrap);
+  // ---- editor ----
+  function refreshProgress() {
+    if (!state.required.length) {
+      $('progress').innerHTML = '';
+      return;
+    }
+    var filled = 0;
+    state.required.forEach(function (label) {
+      var el = document.querySelector('[data-h="' + label + '"]');
+      if (el && String(el.value).trim()) filled++;
     });
+    var dots = '';
+    for (var i = 0; i < state.required.length; i++) {
+      dots += '<span class="dot' + (i < filled ? ' on' : '') + '"></span>';
+    }
+    $('progress').innerHTML = '<span class="txt">必須項目 ' + filled + '/' +
+      state.required.length + '</span><span class="dots">' + dots + '</span>';
+  }
 
-    // read-only reference (non-editable, non-empty)
+  function buildReference(byLabel) {
     var ro = $('roFields'); var rows = '';
     state.headers.forEach(function (h) {
       if (h.editable) return;
@@ -532,41 +783,70 @@
       rows += '<div class="row"><span class="rk">' + esc(h.label) + '</span>' +
         '<span class="rv">' + valueHtml(v) + '</span></div>';
     });
-    ro.innerHTML = rows ? '<div class="h">参考（自動更新・編集不可）</div>' + rows : '';
-    ro.style.display = rows ? 'block' : 'none';
+    if (rows) {
+      ro.innerHTML = '<div class="h">参考（自動更新・編集不可）</div>' +
+        '<div class="note-line">これらの項目は Excel シートと yfinance / AI で自動同期されます。</div>' + rows;
+      ro.style.display = 'block';
+    } else {
+      ro.innerHTML = ''; ro.style.display = 'none';
+    }
+  }
 
+  function openEdit(idx) {
+    var row = state.rows[idx];
+    state.editing = row.row; state.original = {}; state.required = [];
+    var byLabel = byLabelOf(state.headers, row.cells);
+    var name = byLabel[ROLE.name] ? byLabel[ROLE.name].val : '';
+    var ticker = byLabel[ROLE.ticker] ? byLabel[ROLE.ticker].val : '';
+    $('eyebrow').textContent = '編集モード';
+    $('sheetTitle').innerHTML = esc(name || ('行 ' + row.row)) +
+      (ticker ? '<small>（' + esc(ticker) + '）</small> ' : ' ') + '<small>を編集</small>';
+
+    var form = $('formFields'); form.innerHTML = '';
+    state.headers.forEach(function (h) {
+      if (!h.editable) return;
+      var cell = byLabel[h.label];
+      var val = cell && cell.val != null ? cell.val : '';
+      state.original[h.label] = val;
+      var wrap = document.createElement('div');
+      wrap.className = 'fld';
+      wrap.innerHTML = fieldHtml(h.label, val, false);
+      form.appendChild(wrap);
+    });
+    buildReference(byLabel);
+    refreshProgress();
     openSheet();
   }
 
-  // Add-stock mode: blank form built from the tab's editable headers, minus Ticker
-  // (the ticker is resolved later by the register-ticker skill, not typed here).
   function openAdd() {
-    state.editing = 'new'; state.original = {};
+    state.editing = 'new'; state.original = {}; state.required = [ROLE.name];
+    $('eyebrow').textContent = '新規登録';
     $('sheetTitle').innerHTML = esc(state.tab) + ' <small>に銘柄を追加</small>';
     var form = $('formFields'); form.innerHTML = '';
     state.headers.forEach(function (h) {
       if (!h.editable || h.label === ROLE.ticker) return;
-      var isLong = LONG_EDIT.indexOf(h.label) >= 0;
-      var req = h.label === ROLE.name ? ' *' : '';
       var wrap = document.createElement('div');
       wrap.className = 'fld';
-      wrap.innerHTML = '<label>' + esc(h.label) + esc(req) + '</label>' +
-        (isLong ? '<textarea data-h="' + esc(h.label) + '"></textarea>'
-                : '<input data-h="' + esc(h.label) + '" value="">');
+      wrap.innerHTML = fieldHtml(h.label, '', h.label === ROLE.name);
       form.appendChild(wrap);
       state.original[h.label] = '';
     });
     var ro = $('roFields');
     ro.innerHTML = '<div class="h">Ticker はあとで自動解決します</div>' +
-      '<div class="row"><span class="rk">登録後の流れ</span>' +
-      '<span class="rv">register-ticker スキルが候補を提示 → 選択 → 自動更新</span></div>';
+      '<div class="note-line">register-ticker スキルが候補を提示 → 選択 → 自動更新されます。</div>';
     ro.style.display = 'block';
+    refreshProgress();
     openSheet();
   }
 
-  function openSheet() { $('scrim').classList.add('open'); $('sheet').classList.add('open'); }
+  function openSheet() {
+    $('scrim').classList.add('open'); $('sheet').classList.add('open');
+    $('formFields').addEventListener('input', refreshProgress);
+  }
   function closeSheet() {
-    $('scrim').classList.remove('open'); $('sheet').classList.remove('open'); state.editing = null;
+    $('scrim').classList.remove('open'); $('sheet').classList.remove('open');
+    $('formFields').removeEventListener('input', refreshProgress);
+    state.editing = null;
   }
 
   function saveNew() {
@@ -577,14 +857,9 @@
     if (!fields[ROLE.name] || !String(fields[ROLE.name]).trim()) {
       toast('銘柄名を入力してください'); return;
     }
-    var btn = $('saveBtn'); btn.disabled = true; btn.textContent = '追加中…';
-    google.script.run.withSuccessHandler(function () {
-      btn.disabled = false; btn.textContent = '保存';
-      closeSheet(); toast('追加しました'); load();
-    }).withFailureHandler(function (e) {
-      btn.disabled = false; btn.textContent = '保存';
-      toast('追加に失敗: ' + (e && e.message ? e.message : e));
-    }).addRow(state.tab, fields);
+    runSave('追加中…', '追加しました', '追加に失敗: ', function (runner) {
+      runner.addRow(state.tab, fields);
+    });
   }
 
   function save() {
@@ -595,26 +870,27 @@
       if (el.value !== state.original[h]) changed[h] = el.value;
     });
     if (Object.keys(changed).length === 0) { closeSheet(); return; }
-    var btn = $('saveBtn'); btn.disabled = true; btn.textContent = '保存中…';
-    google.script.run.withSuccessHandler(function () {
-      btn.disabled = false; btn.textContent = '保存';
-      closeSheet(); toast('保存しました'); load();
-    }).withFailureHandler(function (e) {
-      btn.disabled = false; btn.textContent = '保存';
-      toast('保存に失敗: ' + (e && e.message ? e.message : e));
-    }).saveRow(state.tab, state.editing, changed);
+    runSave('保存中…', '保存しました', '保存に失敗: ', function (runner) {
+      runner.saveRow(state.tab, state.editing, changed);
+    });
   }
 
   function fail(e) {
     $('list').innerHTML = '<div class="empty"><div class="ico">⚠️</div><div>' +
-      esc('読み込みエラー: ' + (e && e.message ? e.message : e)) + '</div></div>';
+      esc('読み込みエラー: ' + errMsg(e)) + '</div></div>';
   }
 
   $('cancelBtn').onclick = closeSheet;
+  $('closeBtn').onclick = closeSheet;
   $('saveBtn').onclick = save;
   $('addFab').onclick = openAdd;
   $('scrim').onclick = closeSheet;
-  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeSheet(); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') closeSheet();
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && state.editing != null) {
+      e.preventDefault(); save();
+    }
+  });
   init();
 </script>
 </body>
