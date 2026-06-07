@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Copyright (c) 2026 cmb-sy. All Rights Reserved. Proprietary; see LICENSE.
 """Track A: fetch yfinance values for every ticker row in each configured tab and
 write them back to the Google Sheet. Designed to run on a GitHub Actions schedule,
 but also runnable locally for testing.

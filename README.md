@@ -314,5 +314,14 @@ could leak (defense-in-depth; do not relax the rules on the grounds of visibilit
 - **Tickers use yfinance format** (`7203.T`; not `TYO:7203`).
 - **Dividend currency.** 配当金 is in the stock's own currency (`*.T` = JPY, US stocks =
   USD). On the mixed-market holdings tab this column mixes currencies (like 現在株価).
-```
+
+## License
+
+Copyright (c) 2026 cmb-sy. **All Rights Reserved.**
+
+This is **proprietary software**, not open source. No license — express or implied — is
+granted to use, copy, modify, merge, publish, distribute, sublicense, or sell any part of
+it without the copyright holder's prior written permission. Viewing this repository, or
+forking it where the hosting platform's terms allow, grants no such right. See the
+[`LICENSE`](LICENSE) file for the full terms.
 

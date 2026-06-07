@@ -1,3 +1,4 @@
+# Copyright (c) 2026 cmb-sy. All Rights Reserved. Proprietary; see LICENSE.
 """Unit tests for the pure helpers in sheet.py and update_prices.py.
 
 Run from the repo root:  .venv/bin/python -m unittest discover -s tests

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Copyright (c) 2026 cmb-sy. All Rights Reserved. Proprietary; see LICENSE.
 """I/O helper for the register-ticker skill. LOCAL / MANUAL use only.
 
 The owner registers a stock by name from the web app (a name-only row, no Ticker, in a

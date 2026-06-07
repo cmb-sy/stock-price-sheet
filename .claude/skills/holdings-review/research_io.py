@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Copyright (c) 2026 cmb-sy. All Rights Reserved. Proprietary; see LICENSE.
 """I/O helper for the holdings-review skill. LOCAL / MANUAL use only.
 
 Subcommands:

@@ -1,3 +1,4 @@
+# Copyright (c) 2026 cmb-sy. All Rights Reserved. Proprietary; see LICENSE.
 """Shared Google Sheets auth/config helpers for Track A (update_prices.py) and
 the holdings-review skill (.claude/skills/holdings-review/research_io.py).
 
