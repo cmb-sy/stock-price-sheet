@@ -1,8 +1,9 @@
 /**
  * stock-price-sheet — owner-only manual editor (Apps Script web app).
  *
- * A standalone web app that opens the spreadsheet by ID and runs AS THE DEPLOYING
- * OWNER (see appsscript.json: executeAs USER_DEPLOYING, access MYSELF). It needs no
+ * A standalone web app that opens the spreadsheet by ID and runs AS THE ACCESSING
+ * USER (see appsscript.json: executeAs USER_ACCESSING, access ANYONE — access is then
+ * narrowed in code to the ALLOWED_EMAILS allowlist below). It needs no
  * service-account key. This file intentionally contains ONLY generic header labels,
  * tab names, and the spreadsheet_id (the same public-safe value as config.yaml) —
  * never tickers, prices, or PII. Do not log cell values.
@@ -28,7 +29,7 @@ var TABS = ['保有銘柄', '監視-JP', '監視-US'];
 // Manual columns the UI may edit, per tab. Everything else is read-only. Mirrors
 // the manual roles in config.yaml / CLAUDE.md; labels are generic, no tickers/PII.
 var MANUAL_HEADERS = {
-  '保有銘柄': ['銘柄名', '取得日', '短中長期', '目標売却株価', '取得株価', '取得株数', '購入理由', 'Ticker'],
+  '保有銘柄': ['銘柄名', '想定保有期間', '目標売却株価', '取得株価', '取得株数', '株主優待', '購入理由', 'Ticker'],
   '監視-JP': ['銘柄名', '購入検討株価', '購入検討理由', 'Ticker'],
   '監視-US': ['銘柄名', '購入検討株価', '購入検討理由', 'Ticker']
 };
@@ -95,10 +96,16 @@ function getRows(tabName) {
     return { label: h, editable: manual.indexOf(h) >= 0 };
   });
   var tickerIdx = headerRow.indexOf('Ticker');
+  var nameIdx = headerRow.indexOf('銘柄名');
   var rows = [];
   for (var r = HEADER_ROW; r < values.length; r++) {
     var cells = values[r];
-    if (tickerIdx >= 0 && !String(cells[tickerIdx] || '').trim()) continue;
+    // Show a row that has a Ticker OR a 銘柄名. A name-only row is a stock the owner
+    // just registered (ticker not yet resolved); it must appear so it is editable and
+    // visible to the register-ticker skill. Fully blank trailing rows stay hidden.
+    var hasTicker = tickerIdx >= 0 && String(cells[tickerIdx] || '').trim();
+    var hasName = nameIdx >= 0 && String(cells[nameIdx] || '').trim();
+    if (!hasTicker && !hasName) continue;
     rows.push({ row: r + 1, cells: cells });
   }
   return { headers: headers, rows: rows };
@@ -132,6 +139,42 @@ function saveRow(tabName, rowNum, fields) {
     written++;
   }
   return written;
+}
+
+/**
+ * Appends a new row to a tab, writing only the given manual fields. fields =
+ * { "<header>": "<value>" }. Used by the "register a stock" flow: the owner enters a
+ * 銘柄名 (and optionally 購入検討株価 / 購入検討理由); the Ticker is left blank and is
+ * resolved later by the register-ticker skill (yfinance search + human pick). Only
+ * manual headers are accepted; 銘柄名 is required so the row is identifiable. Returns
+ * the new 1-based row number.
+ */
+function addRow(tabName, fields) {
+  _guard();
+  var manual = MANUAL_HEADERS[tabName] || [];
+  var sh = _sheet(tabName);
+  var headerRow = sh.getRange(HEADER_ROW, 1, 1, sh.getLastColumn()).getValues()[0];
+  var rowArr = [];
+  for (var i = 0; i < headerRow.length; i++) rowArr.push('');
+
+  var any = false;
+  for (var label in fields) {
+    if (!Object.prototype.hasOwnProperty.call(fields, label)) continue;
+    if (manual.indexOf(label) < 0) {
+      throw new Error('編集不可（自動更新）列のため書き込みできません');
+    }
+    var col = headerRow.indexOf(label);
+    if (col < 0) throw new Error('ヘッダが見つかりません: ' + label);
+    rowArr[col] = _coerce(fields[label]);
+    any = true;
+  }
+  if (!any) throw new Error('登録する値がありません');
+
+  var nameCol = headerRow.indexOf('銘柄名');
+  if (nameCol < 0 || !String(rowArr[nameCol]).trim()) throw new Error('銘柄名は必須です');
+
+  sh.appendRow(rowArr);
+  return sh.getLastRow();
 }
 
 // Numbers (incl. comma-grouped) -> Number so the cell's number format applies.

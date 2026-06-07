@@ -10,6 +10,7 @@ from sheet import index_to_col, resolve_columns
 from update_prices import (
     _dividend_total,
     _market_cap_oku,
+    _ratio,
     _round,
     _to_float,
     _yoy,
@@ -123,6 +124,23 @@ class TestYoY(unittest.TestCase):
         self.assertEqual(_yoy(None, 100), "N/A")
         self.assertEqual(_yoy(100, None), "N/A")
         self.assertEqual(_yoy(100, 0), "N/A")
+
+
+class TestRatio(unittest.TestCase):
+    """_ratio backs 年初来安値との乖離率 = (現在株価 - 年初来安値)/年初来安値*100."""
+
+    def test_gap_above_base(self):
+        # price 120 vs YTD-low 100 -> +20% above the low
+        self.assertEqual(_ratio(120, 100), 20.0)
+        self.assertEqual(_ratio("1,200", "1,000"), 20.0)
+
+    def test_at_base_is_zero(self):
+        self.assertEqual(_ratio(100, 100), 0.0)
+
+    def test_missing_or_zero_base_is_na_not_fabricated(self):
+        self.assertEqual(_ratio(None, 100), "N/A")
+        self.assertEqual(_ratio(120, None), "N/A")
+        self.assertEqual(_ratio(120, 0), "N/A")
 
 
 class TestMarketCapOku(unittest.TestCase):

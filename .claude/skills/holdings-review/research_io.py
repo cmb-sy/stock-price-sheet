@@ -3,7 +3,7 @@
 
 Subcommands:
   read-rows   Print JSON of every holding (a row with a ticker) in the 保有銘柄
-              tab, with the owner's inputs (短中長期, 目標売却株価, 購入理由), the
+              tab, with the owner's inputs (想定保有期間, 目標売却株価, 購入理由), the
               Track A figures (現在株価, 配当利回り, 配当金), and the current
               AIコメント, so the skill can decide what to (re)write.
   write       Read {"writes": [{"row","value"}, ...]} from stdin and batch-write

@@ -2,22 +2,28 @@
 
 A standalone Apps Script **web app** that shows the spreadsheet and lets you edit the
 **manual columns** from a browser (incl. mobile). It opens the sheet by ID and runs
-**as you** (the deploying owner), so it needs **no service-account key**. Track A
-(yfinance) and Track B (Claude) columns are read-only and the server refuses to write
-them.
+**as the accessing user** (`executeAs: USER_ACCESSING`), so it needs **no
+service-account key** — but each allowed account must have the sheet shared with it.
+Track A (yfinance) and Track B (Claude) columns are read-only and the server refuses to
+write them.
 
 Files (managed with `clasp`, Google's Apps Script CLI):
 
-- `appsscript.json` — manifest. `executeAs: USER_DEPLOYING`, `access: MYSELF`
-  (only you can open it), scope limited to `spreadsheets`.
+- `appsscript.json` — manifest. `executeAs: USER_ACCESSING`, `access: ANYONE`; access
+  is then narrowed in code to an allowlist (see below), so each visitor runs as
+  themselves and `Session.getActiveUser().getEmail()` can be checked. Scopes:
+  `spreadsheets` + `userinfo.email`.
 - `Code.gs` — server: `getRows` (read, display-formatted), `saveRow` (writes only
-  whitelisted manual headers; refuses read-only columns).
+  whitelisted manual headers; refuses read-only columns). Every data call passes
+  through `_guard()`, which rejects non-allowlisted users.
 - `index.html` — client: tab switch → table (all columns) → per-row edit form
   (manual fields only) → save.
 
-`.clasp.json` (the scriptId linkage) is **gitignored** — it stays local. No tickers,
-prices, PII, or keys live in any committed file here (only generic header/tab labels
-and the spreadsheet_id, which is already public-safe in `config.yaml`).
+The allowlist (emails) is **not committed** — it lives in a Script Property named
+`ALLOWED_EMAILS` (comma-separated), set in the Apps Script editor. `.clasp.json` (the
+scriptId linkage) is **gitignored** — it stays local. No tickers, prices, PII, or keys
+live in any committed file here (only generic header/tab labels and the spreadsheet_id,
+which is already public-safe in `config.yaml`).
 
 ## One-time setup
 
@@ -33,13 +39,24 @@ Also enable the Apps Script API once at:
 
 ```bash
 cd webapp
-clasp create --type webapp --title "stock-price-sheet"
-# If clasp asks about overwriting appsscript.json, keep THIS repo's version
-# (answer no / restore it with: git checkout -- appsscript.json).
-clasp push                          # uploads Code.gs, index.html, appsscript.json
+clasp create --type standalone --title "stock-price-sheet"
+# clasp create overwrites appsscript.json with a default — restore THIS repo's
+# version so executeAs/access/scopes are preserved:
+git checkout -- appsscript.json
+clasp push --force                  # uploads Code.gs, index.html, appsscript.json
 ```
 
 `clasp create` writes a local `.clasp.json` with the new scriptId — it is gitignored.
+
+## Set the allowlist
+
+In the Apps Script editor → **Project Settings → Script Properties**, add a property:
+
+- key: `ALLOWED_EMAILS`
+- value: comma-separated emails allowed to use the app (e.g. `a@example.com,b@example.com`)
+
+Share the spreadsheet (Editor) with each of those accounts — with `USER_ACCESSING`
+the app acts as the visitor, so each must be able to open the sheet.
 
 ## Deploy as a web app
 
@@ -48,14 +65,16 @@ clasp deploy --description "v1"
 ```
 
 Then open the Apps Script editor (`clasp open`) → **Deploy → Manage deployments** and
-confirm: **Execute as = Me**, **Who has access = Only myself**. Copy the web app URL
-(`.../exec`). The first open will prompt you to authorize the `spreadsheets` scope.
+confirm: **Execute as = User accessing the web app**, **Who has access = Anyone**
+(the in-code allowlist is what actually restricts access). Copy the web app URL
+(`.../exec`). The first open will prompt you to authorize the `spreadsheets` +
+`userinfo.email` scopes.
 
 ## Update later
 
 ```bash
 cd webapp
-clasp push
+clasp push --force
 clasp deploy --description "vN"     # or redeploy the existing deployment in the UI
 ```
 
@@ -63,7 +82,6 @@ clasp deploy --description "vN"     # or redeploy the existing deployment in the
 
 - Numeric manual fields (購入検討株価/目標売却株価/取得株価/取得株数) are stored as
   numbers so the sheet's number format applies; names/reasons/tickers stay text.
-- Editing 取得日 from the web stores it as text; for a true date value, edit it in the
-  sheet directly. (v1 scope.)
-- Adding brand-new rows is not in v1 — add a ticker row in the sheet, then it appears
-  here for editing.
+- The editable manual columns per tab are defined by `MANUAL_HEADERS` in `Code.gs`
+  (holdings: 銘柄名/想定保有期間/目標売却株価/取得株価/取得株数/株主優待/購入理由/Ticker;
+  watchlist: 銘柄名/購入検討株価/購入検討理由/Ticker). Everything else is read-only.

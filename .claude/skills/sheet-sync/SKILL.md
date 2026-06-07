@@ -48,18 +48,21 @@ worksheet's `header` array.
 
 **holdings tab roles** (e.g. `保有銘柄`):
 
-| role              | header label | owner / role                                  |
-|-------------------|--------------|-----------------------------------------------|
-| `ticker`          | Ticker       | manual; rows without it are skipped (required)|
-| `name`            | 銘柄名        | manual                                        |
-| `shares`          | 取得株数      | manual; × dividendRate for 配当金             |
-| `current_price`   | 現在株価      | Track A: currentPrice                          |
-| `dividend_yield`  | 配当利回り    | Track A: dividendYield (percent)               |
-| `dividend_amount` | 配当金        | Track A: dividendRate × 取得株数              |
-| `horizon`         | 短中長期      | manual; holdings-review input                  |
-| `target_sell`     | 目標売却株価  | manual; holdings-review input                  |
-| `purchase_reason` | 購入理由      | manual; holdings-review input                  |
-| `ai_comment`      | AIコメント    | holdings-review writes this (only)             |
+| role                  | header label         | owner / role                                  |
+|-----------------------|----------------------|-----------------------------------------------|
+| `ticker`              | Ticker               | manual; rows without it are skipped (required)|
+| `name`                | 銘柄名               | manual                                        |
+| `ytd_low_gap_pct`     | 年初来安値との乖離率 | Track A (derived): (現在株価 − YTD low)/YTD low×100 |
+| `horizon`             | 想定保有期間         | manual; holdings-review input                 |
+| `target_sell`         | 目標売却株価         | manual; holdings-review input                 |
+| `current_price`       | 現在株価             | Track A: currentPrice                         |
+| `acquire_price`       | 取得株価             | manual; read by Track B, never written        |
+| `shares`              | 取得株数             | manual; × dividendRate for 配当金             |
+| `dividend_yield`      | 配当利回り           | Track A: dividendYield (percent)              |
+| `dividend_amount`     | 配当金               | Track A: dividendRate × 取得株数              |
+| `shareholder_benefit` | 株主優待             | manual; not available from yfinance           |
+| `purchase_reason`     | 購入理由             | manual; holdings-review input                 |
+| `ai_comment`          | AIコメント           | holdings-review writes this (only)            |
 
 **watchlist tab roles** (e.g. `監視-JP`, `監視-US`):
 
@@ -69,6 +72,7 @@ worksheet's `header` array.
 | `kabutan_url`     | かぶたんURL        | Track A: built from the ticker        |
 | `theme`           | 業界やテーマ       | Track B (stock-research)              |
 | `my_target`       | 購入検討株価       | manual                                |
+| `ytd_low_gap_pct` | 年初来安値との乖離率 | Track A (derived): vs the YTD low   |
 | `consider_reason` | 購入検討理由       | manual; stock-research input          |
 | `current_price`   | 現在株価           | Track A: currentPrice                 |
 | `per`             | PER                | Track A: trailingPE                   |

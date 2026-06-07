@@ -5,7 +5,7 @@ argument-hint: "(no args; processes every row in 保有銘柄 that has a ticker)
 ---
 
 For each holding, write the owner a candid, personalized comment: given **why they
-bought it (購入理由)**, **their horizon (短中長期)**, and **their target sell price
+bought it (購入理由)**, **their horizon (想定保有期間)**, and **their target sell price
 (目標売却株価)**, is the original thesis still intact, and what should they watch or
 do now? This is a **manually launched, owner-only skill**. It writes **only** the
 `AIコメント` column; it never touches the manual columns or Track A's columns.
@@ -20,7 +20,7 @@ Japanese. The tab name `保有銘柄` below is a sheet identifier, kept as-is.)
   column move in the sheet does not break this skill.
 - Inputs read for each holding (role → header label):
   - `purchase_reason` 購入理由 — the owner's reason for buying (the thesis to test).
-  - `horizon` 短中長期 — the intended holding horizon (short / mid / long).
+  - `horizon` 想定保有期間 — the intended holding horizon (short / mid / long).
   - `target_sell` 目標売却株価 — the price at which the owner intends to sell.
   - Track A figures: `current_price` 現在株価, `dividend_yield` 配当利回り,
     `dividend_amount` 配当金.
@@ -39,11 +39,11 @@ order, each as its own paragraph:
    still hold given the latest facts? **継続保有 / 買い増し / 一部利確 / 見直し** — your
    honest call, in one or two sentences.
 2. **根拠（現状評価）**: the body. Weave in the current price vs. their 目標売却株価
-   (remaining upside/downside to their own target) and the evaluation 評価損益率,
-   the dividend yield/amount, valuation (PER/PBR), recent catalysts (earnings,
-   guidance, sector/macro shifts), and the market environment — calibrated to their
-   **horizon** (a short-term and a long-term holder get different advice from the same
-   facts). Spell out the reasoning, don't just list figures.
+   (remaining upside/downside to their own target), the dividend yield/amount, valuation
+   (research PER/PBR yourself — they are not on the holdings tab), recent catalysts
+   (earnings, guidance, sector/macro shifts), and the market environment — calibrated to
+   their **horizon** (a short-term and a long-term holder get different advice from the
+   same facts). Spell out the reasoning, don't just list figures.
 3. **リスク・注目点**: name the key risks and **what to watch** next — a concrete
    trigger to revisit (e.g. the next earnings, a guidance/rate event).
 4. **まとめ**: close with a clear stance and the level/condition that would change it.
@@ -64,7 +64,7 @@ so plainly rather than inventing detail to hit a length.
   confirmed, say so in the comment rather than guessing. Source URLs are not stored in
   the sheet; summarize the basis/reasoning in the comment instead.
 - **Personalized, not generic**: the comment must engage with the owner's specific
-  購入理由 / 短中長期 / 目標売却株価, not read like a stock-screener blurb.
+  購入理由 / 想定保有期間 / 目標売却株価, not read like a stock-screener blurb.
 - **Secret-handling discipline**: this skill's output is handled only transiently in
   the local Claude session. The repo is private, but never regress that boundary —
   never leave tickers/prices/PII in committed files or run logs (see the repo-root
@@ -128,6 +128,6 @@ could not be confirmed and was therefore hedged in the comment, state that.
 
 - Writing to any column other than `AIコメント` (`research_io.py write` refuses it).
 - One-shotting the research, or restating figures instead of forming a judgment.
-- Ignoring the owner's 購入理由 / 短中長期 / 目標売却株価 — the comment must be about
+- Ignoring the owner's 購入理由 / 想定保有期間 / 目標売却株価 — the comment must be about
   *their* position, not a generic take.
 - Fabricating a value or event you could not confirm.

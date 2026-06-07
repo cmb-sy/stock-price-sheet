@@ -6,9 +6,10 @@ argument-hint: "(no args; processes every row that has a ticker in every watchli
 
 For each watched stock (a candidate the owner does **not** yet hold), web-research
 it deeply and write the analysis Track A cannot produce. Track A (yfinance) already
-fills price, PER/PBR, market cap, 3-month max volume, 52-week high/low, EPS (TTM),
-EPS YoY, rating, and the next earnings date. This skill adds the **web-research**
-values and an opinionated verdict. It is a **manually launched, owner-only skill**.
+fills price, the YTD-low gap (年初来安値との乖離率), PER/PBR, market cap, EPS (TTM),
+EPS YoY, rating, the next earnings date, and the kabutan URL. This skill adds the
+**web-research** values and an opinionated verdict. It is a **manually launched,
+owner-only skill**.
 
 (Repo files are in English; the sheet — tab names, headers, data — stays in
 Japanese. Tab names like `監視-JP` / `監視-US` are sheet identifiers, kept as-is.)
@@ -52,8 +53,8 @@ in this order, each as its own paragraph:
    購入検討理由 — does it still hold given the latest facts? — and judge whether the
    購入検討株価 is a *reasonable entry price* (too high / about right / room to wait),
    using current price, your researched fair value (理論株価) and analyst target
-   (アナリスト予想株価), PER/PBR vs. the industry averages, PEG, EPS trend & YoY,
-   dividend, 52-week range position, and the market/sector backdrop as evidence.
+   (アナリスト予想株価), PER/PBR vs. the industry averages, EPS trend & YoY, dividend,
+   the YTD-low gap (年初来安値との乖離率), and the market/sector backdrop as evidence.
    Spell out the reasoning, don't just list figures.
 3. **リスク・注目点**: name the key risks and **what to watch** — a concrete trigger
    to revisit (e.g. the 次回決算日, a guidance or rate event).

@@ -168,6 +168,16 @@
     .btn:active { transform: scale(.98); }
     .btn[disabled] { opacity: .55; cursor: default; transform: none; }
 
+    /* ---- add-stock FAB (watchlist tabs only) ---- */
+    .fab { position: fixed; right: 16px; z-index: 25; display: none;
+      bottom: calc(20px + env(safe-area-inset-bottom)); align-items: center; gap: 2px;
+      background: var(--accent); color: #fff; border: 0; border-radius: 999px;
+      padding: 14px 20px; font: inherit; font-weight: 700; font-size: 14px;
+      box-shadow: 0 6px 20px rgba(37,99,235,.4); cursor: pointer; transition: .15s; }
+    .fab.show { display: inline-flex; }
+    .fab:active { transform: scale(.97); }
+    .fab .plus { font-size: 18px; line-height: 1; margin-right: 2px; }
+
     .toast { position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 20px);
       background: #111827; color: #fff; padding: 10px 18px; border-radius: 999px;
       font-size: 13px; font-weight: 600; opacity: 0; pointer-events: none;
@@ -196,6 +206,7 @@
     </div>
   </div>
 
+  <button class="fab" id="addFab"><span class="plus">＋</span>銘柄を追加</button>
   <div class="toast" id="toast"></div>
 
 <script>
@@ -210,7 +221,7 @@
   // Labels that must NOT render as standalone chips (shown elsewhere / combined).
   var SUPPRESS = { '業界PER': 1, '業界PBR': 1, '業界やテーマ': 1, 'PER': 1, 'PBR': 1 };
   // Metrics colored by sign (positive = green, negative = red).
-  var SIGNED = { '評価損益額': 1, '評価損益率（%）': 1 };
+  var SIGNED = { '年間EPS前年比（%）': 1 };
   // Full-width note blocks, shown in this order. `man` = manual (editable),
   // `ai` = Claude verdict (gets the prose treatment).
   var NOTES = [
@@ -228,23 +239,17 @@
   var GLOSSARY = [
     { sec: '自動取得（yfinance）', items: [
       ['現在株価', '直近の取引価格。'],
+      ['年初来安値との乖離率', '現在値が年初来安値から何%上にあるか。0%に近いほど安値圏。'],
       ['PER（業界）', '株価収益率＝株価÷1株利益。低いほど割安の目安。括弧内は業界平均。'],
       ['PBR（業界）', '株価純資産倍率＝株価÷1株純資産。1倍が解散価値の目安。括弧内は業界平均。'],
-      ['PEGレシオ', 'PER÷利益成長率。1前後が妥当、低いほど成長対比で割安。'],
       ['配当利回り', '年間配当÷株価（%）。'],
       ['配当金', '1株配当×保有株数（年間。保有銘柄のみ）。'],
       ['時価総額', '株価×発行済株式数。億円・円換算で統一。'],
       ['現在EPS', '1株当たり利益（直近12ヶ月）。'],
       ['年間EPS前年比（%）', '通期EPSの前年比。利益の伸び。'],
-      ['52週高値・安値', '過去1年の最高値・最安値。'],
-      ['52週レンジ内位置（%）', '現在値が52週の安値0%〜高値100%のどこにあるか。'],
       ['レーティング', 'アナリスト推奨（strong_buy〜sell）。'],
       ['次回決算日', '次の決算発表予定日。'],
-      ['評価額／評価損益額／評価損益率（%）', '保有のみ。時価評価額と、取得来の損益額・損益率。'],
-      ['目標との乖離率（%）', '保有のみ。現在値から目標売却株価まで何%か。'],
-      ['購入検討との乖離率（%）', '監視のみ。現在値が購入検討株価から何%離れているか（＋は割高）。'],
-      ['アナリスト予想乖離率（%）', '監視のみ。現在値からアナリスト予想株価までの上方余地。'],
-      ['かぶたんURL／みんかぶURL', '外部の銘柄情報ページへのリンク。']
+      ['かぶたんURL', '外部の銘柄情報ページ（かぶたん）へのリンク。']
     ]},
     { sec: 'AI分析（Claudeのリサーチ）', items: [
       ['業界やテーマ', 'その銘柄が属する業界・テーマ。'],
@@ -255,13 +260,15 @@
     ]},
     { sec: '手入力（オーナー）', items: [
       ['銘柄名／Ticker', '銘柄名と、yfinance形式のティッカー。'],
-      ['取得日／取得株価／取得株数', '保有銘柄の購入記録。'],
-      ['短中長期／目標売却株価／購入理由', '保有銘柄の方針と売却目標、購入の根拠。'],
+      ['取得株価／取得株数', '保有銘柄の購入記録。'],
+      ['想定保有期間／目標売却株価／購入理由', '保有銘柄の方針と売却目標、購入の根拠。'],
+      ['株主優待', '保有銘柄の株主優待の内容。'],
       ['購入検討株価／購入検討理由', '監視銘柄で狙う価格と、検討の根拠。']
     ]}
   ];
 
-  var state = { tab: null, headers: [], rows: [], editing: null, original: {} };
+  var state = { tab: null, headers: [], rows: [], editing: null, original: {},
+    holdingsTab: null };
 
   function $(id) { return document.getElementById(id); }
   function esc(s) {
@@ -282,6 +289,9 @@
   function init() {
     google.script.run.withSuccessHandler(function (tabs) {
       var box = $('tabs');
+      // The first tab is the holdings tab (config order); the rest are watchlist tabs,
+      // which are the only ones that allow registering a new stock.
+      state.holdingsTab = tabs.length ? tabs[0] : null;
       tabs.forEach(function (t, i) {
         var b = document.createElement('button');
         b.className = 'seg' + (i === 0 ? ' active' : '');
@@ -303,6 +313,9 @@
     state.tab = tab;
     [].forEach.call(document.querySelectorAll('.seg'), function (e) { e.classList.remove('active'); });
     if (btn) btn.classList.add('active');
+    // Hide the FAB on every switch; load() re-shows it once the new tab's headers are
+    // loaded, so the add form is never built from the previous tab's headers.
+    $('addFab').classList.remove('show');
     if (tab === GLOSSARY_TAB) { renderGlossary(); return; }
     load();
   }
@@ -341,13 +354,15 @@
       render();
       $('count').textContent = data.rows.length + ' 銘柄';
       $('hint').textContent = '✎ は編集できる項目';
+      // Show the add-stock FAB only on watchlist tabs (not the holdings tab), now that
+      // this tab's headers are loaded.
+      $('addFab').classList.toggle('show', state.tab !== state.holdingsTab);
     }).withFailureHandler(fail).getRows(state.tab);
   }
 
   function valueHtml(val) {
     if (isUrl(val)) {
-      var label = /minkabu/i.test(val) ? 'みんかぶ'
-        : /kabutan/i.test(val) ? 'かぶたん' : 'リンク';
+      var label = /kabutan/i.test(val) ? 'かぶたん' : 'リンク';
       return '<a class="link" target="_blank" rel="noopener" href="' + esc(val) + '">' + label + '</a>';
     }
     return esc(val);
@@ -494,12 +509,57 @@
     openSheet();
   }
 
+  // Add-stock mode: blank form built from the tab's editable headers, minus Ticker
+  // (the ticker is resolved later by the register-ticker skill, not typed here).
+  function openAdd() {
+    state.editing = 'new'; state.original = {};
+    $('sheetTitle').innerHTML = esc(state.tab) + ' <small>に銘柄を追加</small>';
+    var form = $('formFields'); form.innerHTML = '';
+    state.headers.forEach(function (h) {
+      if (!h.editable || h.label === ROLE.ticker) return;
+      var isLong = LONG_EDIT.indexOf(h.label) >= 0;
+      var req = h.label === ROLE.name ? ' *' : '';
+      var wrap = document.createElement('div');
+      wrap.className = 'fld';
+      wrap.innerHTML = '<label>' + esc(h.label) + esc(req) + '</label>' +
+        (isLong ? '<textarea data-h="' + esc(h.label) + '"></textarea>'
+                : '<input data-h="' + esc(h.label) + '" value="">');
+      form.appendChild(wrap);
+      state.original[h.label] = '';
+    });
+    var ro = $('roFields');
+    ro.innerHTML = '<div class="h">Ticker はあとで自動解決します</div>' +
+      '<div class="row"><span class="rk">登録後の流れ</span>' +
+      '<span class="rv">register-ticker スキルが候補を提示 → 選択 → 自動更新</span></div>';
+    ro.style.display = 'block';
+    openSheet();
+  }
+
   function openSheet() { $('scrim').classList.add('open'); $('sheet').classList.add('open'); }
   function closeSheet() {
     $('scrim').classList.remove('open'); $('sheet').classList.remove('open'); state.editing = null;
   }
 
+  function saveNew() {
+    var fields = {};
+    [].forEach.call(document.querySelectorAll('[data-h]'), function (el) {
+      if (String(el.value).trim()) fields[el.getAttribute('data-h')] = el.value;
+    });
+    if (!fields[ROLE.name] || !String(fields[ROLE.name]).trim()) {
+      toast('銘柄名を入力してください'); return;
+    }
+    var btn = $('saveBtn'); btn.disabled = true; btn.textContent = '追加中…';
+    google.script.run.withSuccessHandler(function () {
+      btn.disabled = false; btn.textContent = '保存';
+      closeSheet(); toast('追加しました'); load();
+    }).withFailureHandler(function (e) {
+      btn.disabled = false; btn.textContent = '保存';
+      toast('追加に失敗: ' + (e && e.message ? e.message : e));
+    }).addRow(state.tab, fields);
+  }
+
   function save() {
+    if (state.editing === 'new') { saveNew(); return; }
     var changed = {};
     [].forEach.call(document.querySelectorAll('[data-h]'), function (el) {
       var h = el.getAttribute('data-h');
@@ -523,6 +583,7 @@
 
   $('cancelBtn').onclick = closeSheet;
   $('saveBtn').onclick = save;
+  $('addFab').onclick = openAdd;
   $('scrim').onclick = closeSheet;
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeSheet(); });
   init();

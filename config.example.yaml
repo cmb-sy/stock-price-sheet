@@ -29,23 +29,24 @@ header_rows: 1
 # YAML anchor below. Owners: A = Track A · B = Track B · M = manual.
 _watchlist_columns: &watchlist_columns
   name: "銘柄名"                       # M  stock name
-  kabutan_url: "かぶたんURL"           # A  kabutan page URL derived from the ticker
   theme: "業界やテーマ"                # B  industry / theme the stock belongs to
-  my_target: "購入検討株価"            # M  price the owner is considering buying at
-  consider_reason: "購入検討理由"      # M  why the owner is considering it (stock-research input)
   current_price: "現在株価"            # A  currentPrice
+  my_target: "購入検討株価"            # M  price the owner is considering buying at
+  ytd_low_gap_pct: "年初来安値との乖離率" # A  (現在株価 - 年初来安値)/年初来安値*100
+  analyst_target: "アナリスト予想株価" # B  analyst-consensus target price (web research)
+  theoretical: "理論株価"              # B  theoretical fair price (single value)
+  rating: "レーティング"               # A  recommendationKey
+  market_cap: "時価総額"               # A  marketCap, normalised to 億円 (JPY)
   per: "PER"                           # A  trailingPE
   industry_per: "業界PER"              # B  industry-average PER (not in yfinance)
   pbr: "PBR"                           # A  priceToBook
   industry_pbr: "業界PBR"              # B  industry-average PBR (not in yfinance)
   dividend_yield: "配当利回り"         # A  dividendYield (a percent number, e.g. 2.34)
-  market_cap: "時価総額"               # A  marketCap
   eps_ttm: "現在EPS"                   # A  trailingEps
   eps_yoy_latest: "年間EPS前年比（%）" # A  (fy0 - fy1) / |fy1| * 100, from income_stmt
-  rating: "レーティング"               # A  recommendationKey
-  analyst_target: "アナリスト予想株価" # B  analyst-consensus target price (web research)
-  theoretical: "理論株価"              # B  theoretical fair price (single value)
   next_earnings: "次回決算日"          # A  next earnings date from ticker.calendar
+  consider_reason: "購入検討理由"      # M  why the owner is considering it (stock-research input)
+  kabutan_url: "かぶたんURL"           # A  kabutan page URL derived from the ticker
   analysis_comment: "AI分析コメント"   # B  Claude-synthesized verdict (incl. research date)
   ticker: "Ticker"                     # M  yfinance format (7203.T, AAPL); no-ticker rows skipped
   updated: "更新時刻"                  # A  Track A write timestamp
@@ -56,12 +57,15 @@ tabs:
     columns:
       ticker: "Ticker"             # M  rows without a ticker are skipped
       name: "銘柄名"               # M  never written by either track
-      shares: "取得株数"           # M  multiplied by dividendRate for 配当金
+      ytd_low_gap_pct: "年初来安値との乖離率" # A  (現在株価 - 年初来安値)/年初来安値*100
+      horizon: "想定保有期間"      # M  holdings-review input
+      target_sell: "目標売却株価"  # M  holdings-review input
       current_price: "現在株価"    # A  yfinance currentPrice
+      acquire_price: "取得株価"    # M  manual cost basis (read by Track B, never written)
+      shares: "取得株数"           # M  multiplied by dividendRate for 配当金
       dividend_yield: "配当利回り" # A  yfinance dividendYield (percent number)
       dividend_amount: "配当金"    # A  dividendRate * shares (total annual dividend)
-      horizon: "短中長期"          # M  holdings-review input
-      target_sell: "目標売却株価"  # M  holdings-review input
+      shareholder_benefit: "株主優待" # M  manual (not available from yfinance)
       purchase_reason: "購入理由"  # M  holdings-review input
       ai_comment: "AIコメント"     # B  holdings-review writes this (only)
 
