@@ -65,10 +65,13 @@ Returns `[{tab, row, name}, ...]` — each watchlist row that has a `銘柄名` 
 
 ### 2. Propose candidates for each name
 
-For each pending row, query the yfinance search API:
+For each pending row, query the yfinance search API. **Query the English/romaji
+company name, not the Japanese 銘柄名** — Yahoo Finance's search returns zero results
+for a Japanese-script query (e.g. `東京エレクトロン` → 0 hits, `Tokyo Electron` → hits).
+If you don't know the English name, look it up with WebSearch first.
 
 ```bash
-.venv/bin/python .claude/skills/register-ticker/register_io.py search "<the 銘柄名>"
+.venv/bin/python .claude/skills/register-ticker/register_io.py search "Tokyo Electron"
 ```
 
 Returns `[{symbol, name, exchange, type}, ...]` (up to 8). Filter to the tab's market

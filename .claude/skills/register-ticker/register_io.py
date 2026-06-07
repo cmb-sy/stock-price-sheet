@@ -34,10 +34,10 @@ from pathlib import Path
 # Repo root holds sheet.py: .claude/skills/register-ticker/ -> parents[3].
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 from sheet import (  # noqa: E402
-    get_client,
+    cell,
     index_to_col,
-    load_config,
-    open_spreadsheet,
+    iter_watchlist_sheets,
+    open_configured,
     resolve_columns,
     watchlist_tabs,
 )
@@ -46,26 +46,13 @@ WRITE_ROLE = "ticker"
 MAX_CANDIDATES = 8
 
 
-def _cell(row: list[str], col_idx: int) -> str:
-    i = col_idx - 1
-    return row[i] if 0 <= i < len(row) else ""
-
-
 def read_pending(cfg: dict, ss) -> None:
     out = []
-    for tab in watchlist_tabs(cfg):
-        try:
-            ws = ss.worksheet(tab["tab"])
-        except Exception:
-            print(f"  worksheet not found, skipped: {tab['tab']}", file=sys.stderr)
-            continue
-        header = ws.row_values(int(cfg["header_rows"]))
-        cols = resolve_columns(header, tab["columns"], required={"ticker", "name"})
-        values = ws.get_all_values()
+    for tab, cols, values in iter_watchlist_sheets(cfg, ss, required={"ticker", "name"}):
         for r in range(int(cfg["header_rows"]), len(values)):
             row = values[r]
-            name = _cell(row, cols["name"]).strip()
-            ticker = _cell(row, cols["ticker"]).strip()
+            name = cell(row, cols["name"]).strip()
+            ticker = cell(row, cols["ticker"]).strip()
             if name and not ticker:
                 out.append({"tab": tab["tab"], "row": r + 1, "name": name})
     print(json.dumps(out, ensure_ascii=False, indent=2))
@@ -79,6 +66,10 @@ def search(query: str) -> None:
         quotes = yf.Search(query, max_results=MAX_CANDIDATES).quotes or []
     except Exception as e:
         print(f"search failed: {e}", file=sys.stderr)
+    if not quotes and any(ord(c) > 0x3000 for c in query):
+        # Yahoo Finance search returns nothing for Japanese-script queries; the
+        # English/romaji company name (e.g. "Tokyo Electron") is what resolves.
+        print("no results; retry with the English/romaji company name", file=sys.stderr)
     out = []
     for q in quotes:
         out.append(
@@ -133,8 +124,7 @@ def main() -> int:
             sys.exit("search needs a query (argv or stdin)")
         search(query)
         return 0
-    cfg = load_config()
-    ss = open_spreadsheet(cfg, get_client())
+    cfg, ss = open_configured()
     if cmd == "read-pending":
         read_pending(cfg, ss)
     else:
