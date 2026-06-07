@@ -112,6 +112,15 @@
     .term:last-child { border-bottom: 0; }
     .term .t { font-size: 14px; font-weight: 700; margin-bottom: 2px; }
     .term .d { font-size: 13px; color: #4b5563; line-height: 1.6; }
+    /* stacked-fraction formula (no external math engine) */
+    .formula { display: flex; align-items: center; flex-wrap: wrap; gap: 7px;
+      font-size: 13px; color: #374151; margin: 5px 0 7px;
+      font-variant-numeric: tabular-nums; }
+    .formula .op { color: #6b7280; white-space: nowrap; }
+    .frac { display: inline-flex; flex-direction: column; text-align: center;
+      vertical-align: middle; }
+    .frac .num { padding: 0 8px 2px; border-bottom: 1.6px solid #9ca3af; }
+    .frac .den { padding: 2px 8px 0; }
     .gloss-intro { color: var(--sub); font-size: 12.5px; padding: 4px 2px 8px; line-height: 1.6; }
 
     .card-foot { display: flex; align-items: center; justify-content: space-between;
@@ -239,10 +248,14 @@
   var GLOSSARY = [
     { sec: '自動取得（yfinance）', items: [
       ['現在株価', '直近の取引価格。'],
-      ['年初来安値との乖離率', '現在値が年初来安値から何%上にあるか。0%に近いほど安値圏。'],
-      ['PER（業界）', '株価収益率＝株価÷1株利益。低いほど割安の目安。括弧内は業界平均。'],
-      ['PBR（業界）', '株価純資産倍率＝株価÷1株純資産。1倍が解散価値の目安。括弧内は業界平均。'],
-      ['配当利回り', '年間配当÷株価（%）。'],
+      ['年初来安値との乖離率', '現在値が年初来安値から何%上にあるか。0%に近いほど安値圏。',
+        [{ n: '現在値 − 年初来安値', d: '年初来安値' }, '× 100']],
+      ['PER（業界）', '株価収益率。低いほど割安の目安。括弧内は業界平均。',
+        [{ n: '株価', d: '1株利益' }]],
+      ['PBR（業界）', '株価純資産倍率。1倍が解散価値の目安。括弧内は業界平均。',
+        [{ n: '株価', d: '1株純資産' }]],
+      ['配当利回り', '株価に対する年間配当の割合（%）。',
+        [{ n: '年間配当', d: '株価' }, '× 100']],
       ['配当金', '1株配当×保有株数（年間。保有銘柄のみ）。'],
       ['時価総額', '株価×発行済株式数。億円・円換算で統一。'],
       ['現在EPS', '1株当たり利益（直近12ヶ月）。'],
@@ -327,12 +340,28 @@
     GLOSSARY.forEach(function (g) {
       out += '<div class="gloss-sec"><h3>' + esc(g.sec) + '</h3><div class="gloss-card">';
       g.items.forEach(function (it) {
+        var f = it[2] ? formulaHtml(it[2]) : '';
         out += '<div class="term"><div class="t">' + esc(it[0]) + '</div>' +
-          '<div class="d">' + esc(it[1]) + '</div></div>';
+          f + '<div class="d">' + esc(it[1]) + '</div></div>';
       });
       out += '</div></div>';
     });
     $('list').innerHTML = out;
+  }
+
+  // Build a stacked-fraction formula from tokens. A string token is an operator/
+  // term shown inline; a { n, d } token renders as numerator over denominator.
+  function formulaHtml(tokens) {
+    var h = '<div class="formula">';
+    tokens.forEach(function (tk) {
+      if (typeof tk === 'string') {
+        h += '<span class="op">' + esc(tk) + '</span>';
+      } else {
+        h += '<span class="frac"><span class="num">' + esc(tk.n) +
+          '</span><span class="den">' + esc(tk.d) + '</span></span>';
+      }
+    });
+    return h + '</div>';
   }
 
   function skeleton() {
