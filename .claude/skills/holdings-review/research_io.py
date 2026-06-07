@@ -28,11 +28,10 @@ from pathlib import Path
 # Repo root holds sheet.py: .claude/skills/holdings-review/ -> parents[3].
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 from sheet import (  # noqa: E402
-    get_client,
+    cell,
     holdings_tabs,
     index_to_col,
-    load_config,
-    open_spreadsheet,
+    open_configured,
     resolve_columns,
 )
 
@@ -51,11 +50,6 @@ READ_ROLES = (
 WRITE_ROLE = "ai_comment"
 
 
-def _cell(row: list[str], col_idx: int) -> str:
-    i = col_idx - 1
-    return row[i] if 0 <= i < len(row) else ""
-
-
 def _holdings_tab(cfg: dict) -> dict:
     tabs = holdings_tabs(cfg)
     if not tabs:
@@ -72,7 +66,7 @@ def read_rows(cfg: dict, ss) -> None:
     out = []
     for r in range(int(cfg["header_rows"]), len(values)):
         row = values[r]
-        ticker = _cell(row, cols["ticker"]).strip()
+        ticker = cell(row, cols["ticker"]).strip()
         if not ticker:
             continue
         out.append(
@@ -80,7 +74,7 @@ def read_rows(cfg: dict, ss) -> None:
                 "row": r + 1,  # 1-based sheet row
                 "ticker": ticker,
                 "fields": {
-                    role: _cell(row, cols[role])
+                    role: cell(row, cols[role])
                     for role in READ_ROLES
                     if role in cols
                 },
@@ -112,8 +106,7 @@ def write(cfg: dict, ss) -> None:
 def main() -> int:
     if len(sys.argv) < 2 or sys.argv[1] not in ("read-rows", "write"):
         sys.exit("usage: research_io.py [read-rows|write]")
-    cfg = load_config()
-    ss = open_spreadsheet(cfg, get_client())
+    cfg, ss = open_configured()
     if sys.argv[1] == "read-rows":
         read_rows(cfg, ss)
     else:

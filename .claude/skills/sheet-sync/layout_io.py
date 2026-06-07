@@ -23,7 +23,7 @@ from pathlib import Path
 
 # Repo root holds sheet.py: .claude/skills/sheet-sync/ -> parents[3].
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
-from sheet import get_client, load_config, open_spreadsheet  # noqa: E402
+from sheet import open_configured  # noqa: E402
 
 
 def read_layout(cfg: dict, ss) -> None:
@@ -51,8 +51,7 @@ def read_layout(cfg: dict, ss) -> None:
 def main() -> int:
     if len(sys.argv) < 2 or sys.argv[1] != "read-layout":
         sys.exit("usage: layout_io.py read-layout")
-    cfg = load_config()
-    ss = open_spreadsheet(cfg, get_client())
+    cfg, ss = open_configured()
     read_layout(cfg, ss)
     return 0
 

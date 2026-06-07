@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+from collections.abc import Iterator
 from pathlib import Path
 
 import gspread
@@ -80,6 +81,18 @@ def open_spreadsheet(cfg: dict, client: gspread.Client) -> gspread.Spreadsheet:
     return client.open_by_key(cfg["spreadsheet_id"])
 
 
+def open_configured() -> tuple[dict, gspread.Spreadsheet]:
+    """Load config and open the spreadsheet in one step, returning (cfg, ss)."""
+    cfg = load_config()
+    return cfg, open_spreadsheet(cfg, get_client())
+
+
+def cell(row: list[str], col_idx: int) -> str:
+    """Value at a 1-based column index, or '' if the index is out of range."""
+    i = col_idx - 1
+    return row[i] if 0 <= i < len(row) else ""
+
+
 def index_to_col(index: int) -> str:
     """Convert a 1-based column index to a spreadsheet letter (1->A, 27->AA)."""
     if index < 1:
@@ -120,3 +133,23 @@ def resolve_columns(
             + ", ".join(missing)
         )
     return resolved
+
+
+def iter_watchlist_sheets(
+    cfg: dict, ss, required: set[str] | None = None
+) -> Iterator[tuple[dict, dict[str, int], list[list[str]]]]:
+    """Yield (tab_def, resolved_cols, all_values) for each watchlist tab.
+
+    A tab whose worksheet is missing is skipped with a stderr note (row/tab only,
+    never cell values). `required` is forwarded to resolve_columns.
+    """
+    for tab in watchlist_tabs(cfg):
+        try:
+            ws = ss.worksheet(tab["tab"])
+        except Exception:
+            print(f"  worksheet not found, skipped: {tab['tab']}", file=sys.stderr)
+            continue
+        header = ws.row_values(int(cfg["header_rows"]))
+        cols = resolve_columns(header, tab["columns"], required=required)
+        values = ws.get_all_values()
+        yield tab, cols, values

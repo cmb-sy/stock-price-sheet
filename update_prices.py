@@ -31,10 +31,8 @@ from zoneinfo import ZoneInfo
 import yfinance as yf
 
 from sheet import (
-    get_client,
     index_to_col,
-    load_config,
-    open_spreadsheet,
+    open_configured,
     resolve_columns,
 )
 
@@ -399,8 +397,7 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    cfg = load_config()
-    ss = open_spreadsheet(cfg, get_client())
+    cfg, ss = open_configured()
     header_rows = int(cfg["header_rows"])
     tz = cfg["timezone"]
     now = datetime.now(ZoneInfo(tz)).strftime("%Y-%m-%d %H:%M")

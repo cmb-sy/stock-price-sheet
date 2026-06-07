@@ -36,10 +36,10 @@ from pathlib import Path
 # Repo root holds sheet.py: .claude/skills/stock-research/ -> parents[3].
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 from sheet import (  # noqa: E402
-    get_client,
+    cell,
     index_to_col,
-    load_config,
-    open_spreadsheet,
+    iter_watchlist_sheets,
+    open_configured,
     resolve_columns,
     watchlist_tabs,
 )
@@ -76,25 +76,12 @@ WRITE_ROLES = (
 )
 
 
-def _cell(row: list[str], col_idx: int) -> str:
-    i = col_idx - 1
-    return row[i] if 0 <= i < len(row) else ""
-
-
 def read_rows(cfg: dict, ss) -> None:
     out = []
-    for tab in watchlist_tabs(cfg):
-        try:
-            ws = ss.worksheet(tab["tab"])
-        except Exception:
-            print(f"  worksheet not found, skipped: {tab['tab']}", file=sys.stderr)
-            continue
-        header = ws.row_values(int(cfg["header_rows"]))
-        cols = resolve_columns(header, tab["columns"], required={"ticker"})
-        values = ws.get_all_values()
+    for tab, cols, values in iter_watchlist_sheets(cfg, ss, required={"ticker"}):
         for r in range(int(cfg["header_rows"]), len(values)):
             row = values[r]
-            ticker = _cell(row, cols["ticker"]).strip()
+            ticker = cell(row, cols["ticker"]).strip()
             if not ticker:
                 continue
             out.append(
@@ -103,7 +90,7 @@ def read_rows(cfg: dict, ss) -> None:
                     "row": r + 1,  # 1-based sheet row
                     "ticker": ticker,
                     "fields": {
-                        role: _cell(row, cols[role]) for role in READ_ROLES if role in cols
+                        role: cell(row, cols[role]) for role in READ_ROLES if role in cols
                     },
                 }
             )
@@ -146,8 +133,7 @@ def write(cfg: dict, ss) -> None:
 def main() -> int:
     if len(sys.argv) < 2 or sys.argv[1] not in ("read-rows", "write"):
         sys.exit("usage: research_io.py [read-rows|write]")
-    cfg = load_config()
-    ss = open_spreadsheet(cfg, get_client())
+    cfg, ss = open_configured()
     if sys.argv[1] == "read-rows":
         read_rows(cfg, ss)
     else:
