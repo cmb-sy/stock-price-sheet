@@ -24,7 +24,7 @@
 // sheet sharing, not by this ID). Keep in sync if the sheet ever changes.
 var SPREADSHEET_ID = '1JkQ25PnxflO86axqflNw1HgAHAMVN4dyiQkj1mmFYgE';
 var HEADER_ROW = 1;
-var TABS = ['保有銘柄', '監視-JP', '監視-US'];
+var TABS = ['保有銘柄', '監視-JP', '監視-US', '売買履歴'];
 
 // Header labels looked up by name (a column move does not break these).
 var LABEL_TICKER = 'Ticker';
@@ -35,8 +35,16 @@ var LABEL_NAME = '銘柄名';
 var MANUAL_HEADERS = {
   '保有銘柄': ['銘柄名', '想定保有期間', '目標売却株価', '取得株価', '取得株数', '株主優待', '購入理由', 'Ticker'],
   '監視-JP': ['銘柄名', '購入検討株価', '購入検討理由', 'Ticker'],
-  '監視-US': ['銘柄名', '購入検討株価', '購入検討理由', 'Ticker']
+  '監視-US': ['銘柄名', '購入検討株価', '購入検討理由', 'Ticker'],
+  '売買履歴': ['日付', '銘柄名', 'Ticker', '売買区分', '約定単価', '株数', '理由']
 };
+
+// 売買履歴タブはオーナーが手動作成しなくてよいよう、初回アクセス時に自動生成する
+// （_sheet 参照）。下記はその正規ヘッダ行（順序固定）。末尾の AI分析コメントは
+// 読み取り専用（MANUAL_HEADERS 非掲載）で、将来の Track B スキル用に確保する。
+// 汎用ラベルのみ — ティッカー/価格/PII は一切含めない。
+var HISTORY_TAB = '売買履歴';
+var HISTORY_HEADERS = ['日付', '銘柄名', 'Ticker', '売買区分', '約定単価', '株数', '理由', 'AI分析コメント'];
 
 // Allowlist (emails) is stored in the ALLOWED_EMAILS Script Property, comma-separated,
 // so personal emails never live in this committed file.
@@ -80,8 +88,16 @@ function include(name) {
 
 function _sheet(tabName) {
   if (TABS.indexOf(tabName) < 0) throw new Error('不明なタブです');
-  var sh = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(tabName);
-  if (!sh) throw new Error('タブが見つかりません');
+  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var sh = ss.getSheetByName(tabName);
+  if (!sh) {
+    // 売買履歴タブのみ、無ければ正規ヘッダ付きで自動作成する（冪等: 既存タブは
+    // 上書きしない）。他タブが無いのは従来どおりエラー。単一オーナー運用のため
+    // 競合作成の懸念は実質ない。
+    if (tabName !== HISTORY_TAB) throw new Error('タブが見つかりません');
+    sh = ss.insertSheet(HISTORY_TAB);
+    sh.getRange(HEADER_ROW, 1, 1, HISTORY_HEADERS.length).setValues([HISTORY_HEADERS]);
+  }
   return sh;
 }
 
