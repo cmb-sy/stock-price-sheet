@@ -37,4 +37,15 @@
     });
     return idx.map(function (i) { return rows[i]; });
   }
+
+  // 文字列/数値が「正の数」かを判定する検証専用述語（DOM/google 非依存）。カンマや
+  // ¥ などの装飾を除去して解釈し、空・非数値・0・負数は false。約定単価/株数の入力
+  // バリデーションに使う（index.html の numericFieldError）。表示/計算用の寛容な
+  // parseNum とは役割が異なるため別関数として持つ。
+  function isPositiveNumberStr(v) {
+    var s = String(v == null ? '' : v).replace(/[^0-9.\-]/g, '');
+    if (s === '' || s === '-' || s === '.') return false;
+    var n = parseFloat(s);
+    return !isNaN(n) && n > 0;
+  }
 </script>

@@ -13,7 +13,7 @@ assert.ok(m, 'sortlib.html must contain a <script> block');
 const ctx = {};
 vm.createContext(ctx);
 vm.runInContext(m[1], ctx);
-const { ratingRank, compareKeys, sortRows } = ctx;
+const { ratingRank, compareKeys, sortRows, isPositiveNumberStr } = ctx;
 
 test('ratingRank maps rating strings to ranks, else null', () => {
   assert.equal(ratingRank('strong_buy'), 5);
@@ -62,4 +62,24 @@ test('sortRows: desc/asc order with nulls last, input untouched, stable', () => 
 
   // input array not mutated
   assert.deepEqual(rows.map((r) => r.id), ['a', 'b', 'c', 'd', 'e']);
+});
+
+test('isPositiveNumberStr: positive numbers (incl. comma/yen formatting) are valid', () => {
+  assert.equal(isPositiveNumberStr('1200'), true);
+  assert.equal(isPositiveNumberStr('1,200'), true);
+  assert.equal(isPositiveNumberStr('¥1,200'), true);
+  assert.equal(isPositiveNumberStr('12.5'), true);
+  assert.equal(isPositiveNumberStr(1200), true);
+});
+
+test('isPositiveNumberStr: zero, negative, empty, and non-numeric are invalid', () => {
+  assert.equal(isPositiveNumberStr('0'), false);
+  assert.equal(isPositiveNumberStr('-5'), false);
+  assert.equal(isPositiveNumberStr(''), false);
+  assert.equal(isPositiveNumberStr('   '), false);
+  assert.equal(isPositiveNumberStr('abc'), false);
+  assert.equal(isPositiveNumberStr('-'), false);
+  assert.equal(isPositiveNumberStr('.'), false);
+  assert.equal(isPositiveNumberStr(null), false);
+  assert.equal(isPositiveNumberStr(undefined), false);
 });
