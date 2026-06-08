@@ -1,0 +1,40 @@
+<script>
+  // Pure, dependency-free sort helpers (no DOM, no google.*). Single source of truth:
+  // this same <script> is included into index.html via HtmlService templating, and is
+  // unit-tested from Node (tests/webapp/test_sortlib.mjs) by evaluating this body.
+  // Declared with `function`/`var` so they become globals in both the browser and the
+  // Node vm context.
+  var RATING_RANK = { strong_buy: 5, buy: 4, hold: 3, underperform: 2, sell: 1 };
+
+  // Analyst rating display string -> rank (1..5), or null when unknown/empty.
+  function ratingRank(v) {
+    var k = String(v == null ? '' : v).trim().toLowerCase().replace(/[ \-]/g, '_');
+    return Object.prototype.hasOwnProperty.call(RATING_RANK, k) ? RATING_RANK[k] : null;
+  }
+
+  // Compare two prepared keys (number | string | null/''). null/'' ALWAYS sink to the
+  // bottom in both directions; otherwise numbers compare numerically, strings by ja
+  // locale, and `dir` ('asc'|'desc') flips only the non-null comparison.
+  function compareKeys(a, b, dir) {
+    var aNull = (a === null || a === undefined || a === '');
+    var bNull = (b === null || b === undefined || b === '');
+    if (aNull && bNull) return 0;
+    if (aNull) return 1;
+    if (bNull) return -1;
+    var cmp;
+    if (typeof a === 'number' && typeof b === 'number') cmp = a - b;
+    else cmp = String(a).localeCompare(String(b), 'ja');
+    return dir === 'asc' ? cmp : -cmp;
+  }
+
+  // Stable sort of `rows` by `getKey(row)` in `dir`. Returns a NEW array; input is not
+  // mutated (sorts an index array and ties break on original position).
+  function sortRows(rows, getKey, dir) {
+    var idx = rows.map(function (_, i) { return i; });
+    idx.sort(function (i, j) {
+      var c = compareKeys(getKey(rows[i]), getKey(rows[j]), dir);
+      return c !== 0 ? c : i - j;
+    });
+    return idx.map(function (i) { return rows[i]; });
+  }
+</script>
