@@ -679,6 +679,7 @@
       if (label === ROLE.name || label === ROLE.price || label === ROLE.ticker ||
           label === ROLE.updated) return;
       if (SUPPRESS[label] || noteOf(label)) return;
+      if (isHistoryTab() && label === BUY_SELL) return; // バッジで表示するのでチップ重複を抑止
       var v = String(cell.val == null ? '' : cell.val).trim();
       if (!v) return;
       var cls = '';
@@ -816,12 +817,22 @@
       var stamp = byLabel[ROLE.updated] ? byLabel[ROLE.updated].val : '';
 
       var ch = firstChar(name || ticker || '?');
+      // ピル: 保有/監視は種別ラベル、売買履歴は売買区分（買い=緑 / 売り=赤）。
+      var pillCls, pillTxt;
+      if (isHistoryTab()) {
+        var bs = byLabel[BUY_SELL] ?
+          String(byLabel[BUY_SELL].val == null ? '' : byLabel[BUY_SELL].val).trim() : '';
+        pillTxt = bs || '—';
+        pillCls = bs === '売り' ? ' sell' : ' buy';
+      } else {
+        pillTxt = isHoldings ? '保有' : '監視';
+        pillCls = isHoldings ? '' : ' watch';
+      }
       var c = '<div class="card"><div class="card-top">';
       c += '<div class="avatar">' + esc(ch) + '</div>';
       c += '<div class="top-mid"><div class="name-row">' +
         '<span class="name">' + esc(name || '(名称未設定)') + '</span>' +
-        '<span class="pill' + (isHoldings ? '' : ' watch') + '">' +
-        (isHoldings ? '保有' : '監視') + '</span></div>';
+        '<span class="pill' + pillCls + '">' + esc(pillTxt) + '</span></div>';
       if (ticker) c += '<div class="ticker">' + esc(ticker) + '</div>';
       c += '</div>';
       c += '<div class="top-right">';
