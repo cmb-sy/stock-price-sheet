@@ -24,7 +24,7 @@
 // sheet sharing, not by this ID). Keep in sync if the sheet ever changes.
 var SPREADSHEET_ID = '1JkQ25PnxflO86axqflNw1HgAHAMVN4dyiQkj1mmFYgE';
 var HEADER_ROW = 1;
-var TABS = ['保有銘柄', '監視-JP', '監視-US'];
+var TABS = ['保有銘柄', '監視-JP', '監視-US', '売買履歴'];
 
 // Header labels looked up by name (a column move does not break these).
 var LABEL_TICKER = 'Ticker';
@@ -35,8 +35,16 @@ var LABEL_NAME = '銘柄名';
 var MANUAL_HEADERS = {
   '保有銘柄': ['銘柄名', '想定保有期間', '目標売却株価', '取得株価', '取得株数', '株主優待', '購入理由', 'Ticker'],
   '監視-JP': ['銘柄名', '購入検討株価', '購入検討理由', 'Ticker'],
-  '監視-US': ['銘柄名', '購入検討株価', '購入検討理由', 'Ticker']
+  '監視-US': ['銘柄名', '購入検討株価', '購入検討理由', 'Ticker'],
+  '売買履歴': ['日付', '銘柄名', 'Ticker', '売買区分', '約定単価', '株数', '理由']
 };
+
+// 売買履歴タブはオーナーが手動作成しなくてよいよう、初回アクセス時に自動生成する
+// （_sheet 参照）。下記はその正規ヘッダ行（順序固定）。末尾の AI分析コメントは
+// 読み取り専用（MANUAL_HEADERS 非掲載）で、将来の Track B スキル用に確保する。
+// 汎用ラベルのみ — ティッカー/価格/PII は一切含めない。
+var HISTORY_TAB = '売買履歴';
+var HISTORY_HEADERS = ['日付', '銘柄名', 'Ticker', '売買区分', '約定単価', '株数', '理由', 'AI分析コメント'];
 
 // Allowlist (emails) is stored in the ALLOWED_EMAILS Script Property, comma-separated,
 // so personal emails never live in this committed file.
@@ -80,8 +88,16 @@ function include(name) {
 
 function _sheet(tabName) {
   if (TABS.indexOf(tabName) < 0) throw new Error('不明なタブです');
-  var sh = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(tabName);
-  if (!sh) throw new Error('タブが見つかりません');
+  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var sh = ss.getSheetByName(tabName);
+  if (!sh) {
+    // 売買履歴タブのみ、無ければ正規ヘッダ付きで自動作成する（冪等: 既存タブは
+    // 上書きしない）。他タブが無いのは従来どおりエラー。単一オーナー運用のため
+    // 競合作成の懸念は実質ない。
+    if (tabName !== HISTORY_TAB) throw new Error('タブが見つかりません');
+    sh = ss.insertSheet(HISTORY_TAB);
+    sh.getRange(HEADER_ROW, 1, 1, HISTORY_HEADERS.length).setValues([HISTORY_HEADERS]);
+  }
   return sh;
 }
 
@@ -195,33 +211,35 @@ function addRow(tabName, fields) {
   return sh.getLastRow();
 }
 
-/**
- * Deletes one row from a tab. Guards against deleting the wrong row when the sheet
- * shifted under the client (Track A/B or another session inserting/removing rows):
- * reads the row's CURRENT Ticker + 銘柄名 (display values) and refuses unless they
- * match `expected` = { ticker, name } that the client was looking at. Returns true on
- * success. Never returns or logs cell values (PII/ticker safety).
- */
 function deleteRow(tabName, rowNum, expected) {
   _guard();
+  var manual = MANUAL_HEADERS[tabName] || [];
   var sh = _sheet(tabName);
   rowNum = parseInt(rowNum, 10);
   if (!(rowNum > HEADER_ROW)) throw new Error('無効な行番号です');
   if (rowNum > sh.getLastRow()) throw new Error('行が存在しません');
 
+  // Staleness guard: クライアントは見ていた行の editable 列の表示値を expected として
+  // 送る。サーバは今の行を読み直し、全 expected 値が一致しなければ削除を拒否する。
+  // これにより Track A/B や別セッションの行挿入/削除で行がずれていても、古い行番号で
+  // 誤って削除しない。{ticker,name} から一般化した理由: 取引台帳は同じ ticker+name が
+  // 複数行に現れるため、identity は全 editable 列のタプルでないと一意にならない。
+  // セルの値はログ・戻り値に一切含めない（PII/ティッカー保護）。
+  var keys = expected ? Object.keys(expected) : [];
+  if (!keys.length) throw new Error('削除対象の identity がありません');
   var headerRow = _headerRow(sh);
-  var tickerIdx = headerRow.indexOf(LABEL_TICKER);
-  var nameIdx = headerRow.indexOf(LABEL_NAME);
-  // Without either identity column the staleness guard cannot verify the row;
-  // refuse rather than silently delete by row number alone.
-  if (tickerIdx < 0 && nameIdx < 0) throw new Error('ヘッダが見つかりません');
   var cur = sh.getRange(rowNum, 1, 1, sh.getLastColumn()).getDisplayValues()[0];
-  var curTicker = tickerIdx >= 0 ? String(cur[tickerIdx] || '').trim() : '';
-  var curName = nameIdx >= 0 ? String(cur[nameIdx] || '').trim() : '';
-  var expTicker = String((expected && expected.ticker) || '').trim();
-  var expName = String((expected && expected.name) || '').trim();
-  if (curTicker !== expTicker || curName !== expName) {
-    throw new Error('行の内容が変わっています。再読み込みしてください');
+  for (var i = 0; i < keys.length; i++) {
+    var label = keys[i];
+    // editable（manual）列のみが identity キーとして有効。機械更新列は我々の知らぬ間に
+    // 変わり得るので削除判定に使わない（クライアントは editable 列のみ送る想定）。
+    if (manual.indexOf(label) < 0) throw new Error('削除 identity が不正です');
+    var col = headerRow.indexOf(label);
+    var curVal = col >= 0 ? String(cur[col] || '').trim() : '';
+    var expVal = String(expected[label] == null ? '' : expected[label]).trim();
+    if (curVal !== expVal) {
+      throw new Error('行の内容が変わっています。再読み込みしてください');
+    }
   }
 
   sh.deleteRow(rowNum);

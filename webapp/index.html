@@ -89,6 +89,8 @@
     .pill { flex: 0 0 auto; font-size: 9px; font-weight: 700; border-radius: 4px;
       padding: 1px 5px; background: var(--accent-soft); color: var(--accent); }
     .pill.watch { background: var(--chip); color: var(--sub); }
+    .pill.buy { background: #e7f6ef; color: var(--pos); }
+    .pill.sell { background: #fdecea; color: var(--neg); }
     .ticker { color: var(--sub); font-size: 11px; font-weight: 600;
       letter-spacing: .02em; margin-top: 2px; overflow: hidden;
       text-overflow: ellipsis; white-space: nowrap; }
@@ -221,10 +223,10 @@
     .fld label { display: block; font-weight: 700; font-size: 13px; }
     .fld label .req { color: var(--neg); }
     .fld .help { color: #9ca3af; font-size: 11px; margin: 2px 0 6px; }
-    .fld input, .fld textarea { width: 100%; padding: 11px 12px;
+    .fld input, .fld textarea, .fld select { width: 100%; padding: 11px 12px;
       border: 1px solid var(--line); border-radius: 12px; font: inherit; font-size: 15px;
       background: #fafafa; transition: .15s; }
-    .fld input:focus, .fld textarea:focus { outline: none; border-color: var(--accent);
+    .fld input:focus, .fld textarea:focus, .fld select:focus { outline: none; border-color: var(--accent);
       background: #fff; box-shadow: 0 0 0 3px var(--accent-soft); }
     .fld textarea { min-height: 92px; resize: vertical; line-height: 1.55; }
     .ro { background: var(--chip); border-radius: 12px; padding: 12px; margin: 6px 0 16px; }
@@ -331,18 +333,32 @@
   var NOTES = [
     { label: '購入検討理由', man: true },
     { label: '購入理由',     man: true },
+    { label: '理由',         man: true },
     { label: 'AIコメント',   man: false, ai: true },
     { label: 'AI分析コメント', man: false, ai: true }
   ];
-  var LONG_EDIT = ['購入検討理由', '購入理由'];
+  var LONG_EDIT = ['購入検討理由', '購入理由', '理由'];
   // Short helper text under editable field labels (no schema dependency).
   var HELP = {
     '銘柄名': '正式名称', 'Ticker': 'yfinance 形式（例 7203.T, AAPL）',
     '購入検討株価': '狙う購入価格', '購入検討理由': '検討の根拠をメモ',
     '目標売却株価': '売却の目標価格', '取得株価': '購入時の株価', '取得株数': '保有株数',
     '想定保有期間': '短期 / 中期 / 長期 など', '株主優待': '優待の内容',
-    '購入理由': '購入の根拠をメモ'
+    '購入理由': '購入の根拠をメモ',
+    '日付': '取引日（例 2026-06-08）', '売買区分': '買い / 売り',
+    '約定単価': '約定した1株の価格', '株数': '約定した株数',
+    '理由': '売買の根拠をメモ（AI 分析の材料）'
   };
+
+  // ---- trade-history (売買履歴) tab ----
+  // 保有でも監視でもない第3のタブ種別 = 取引台帳。以降の分岐は isHistoryTab() で切替。
+  var HISTORY_TAB = '売買履歴';
+  var BUY_SELL = '売買区分';
+  function isHistoryTab() { return state.tab === HISTORY_TAB; }
+  // 列挙型 editable フィールドの <select> 選択肢（label -> options）。
+  var SELECT_OPTS = { '売買区分': ['買い', '売り'] };
+  // 入力時に「正の数」を要求する editable 列（Task 7 の numericFieldError が使用）。
+  var POSITIVE_NUM_FIELDS = ['約定単価', '株数'];
 
   // Client-only "glossary" tab. Each section carries a tag matching the data source.
   var GLOSSARY_TAB = '用語解説';
@@ -558,6 +574,14 @@
     $('count').textContent = ''; $('hint').textContent = '';
     google.script.run.withSuccessHandler(function (data) {
       state.headers = data.headers; state.rows = data.rows;
+      // シート順（未ソート）選択肢を廃止したため、各タブは必ず既定キーで整列させる。
+      // 売買履歴は日付降順（新しい取引が上）、保有/監視は銘柄名昇順（中立で決定的）。
+      // selectTab が sortKey=null にリセットするので、タブ切替ごとにこの既定が適用される。
+      // ユーザーが他キーを選んだ後の再読込（load 再実行）ではその選択を尊重する。
+      if (!state.sortKey) {
+        var ds = isHistoryTab() ? { key: '日付', dir: 'desc' } : { key: ROLE.name, dir: 'asc' };
+        state.sortKey = ds.key; state.sortDir = ds.dir;
+      }
       buildSortUI();
       render();
       $('count').textContent = data.rows.length + ' 銘柄';
@@ -582,12 +606,21 @@
   }
 
   function fieldHtml(label, val, required) {
-    var isLong = LONG_EDIT.indexOf(label) >= 0;
     var help = HELP[label] ? '<div class="help">' + esc(HELP[label]) + '</div>' : '';
     var req = required ? ' <span class="req">*</span>' : '';
-    return '<label>✎ ' + esc(label) + req + '</label>' + help +
-      (isLong ? '<textarea data-h="' + esc(label) + '">' + esc(val) + '</textarea>'
-              : '<input data-h="' + esc(label) + '" value="' + esc(val) + '">');
+    var lab = '<label>✎ ' + esc(label) + req + '</label>' + help;
+    if (SELECT_OPTS[label]) {
+      var cur = String(val == null ? '' : val).trim();
+      var opts = '<option value=""></option>' + SELECT_OPTS[label].map(function (o) {
+        return '<option value="' + esc(o) + '"' + (o === cur ? ' selected' : '') +
+          '>' + esc(o) + '</option>';
+      }).join('');
+      return lab + '<select data-h="' + esc(label) + '">' + opts + '</select>';
+    }
+    var isLong = LONG_EDIT.indexOf(label) >= 0;
+    return lab + (isLong
+      ? '<textarea data-h="' + esc(label) + '">' + esc(val) + '</textarea>'
+      : '<input data-h="' + esc(label) + '" value="' + esc(val) + '">');
   }
 
   function errMsg(e) { return e && e.message ? e.message : e; }
@@ -654,6 +687,7 @@
       if (label === ROLE.name || label === ROLE.price || label === ROLE.ticker ||
           label === ROLE.updated) return;
       if (SUPPRESS[label] || noteOf(label)) return;
+      if (isHistoryTab() && label === BUY_SELL) return; // バッジで表示するのでチップ重複を抑止
       var v = String(cell.val == null ? '' : cell.val).trim();
       if (!v) return;
       var cls = '';
@@ -709,7 +743,13 @@
   function sortOptions() {
     var present = {};
     state.headers.forEach(function (h) { present[h.label] = 1; });
-    var opts = [{ key: '', label: 'シート順' }];
+    var opts = [];
+    if (isHistoryTab()) {
+      ['日付', '約定単価', '株数', ROLE.name].forEach(function (l) {
+        if (present[l]) opts.push({ key: l, label: l });
+      });
+      return opts;
+    }
     if (present[ROLE.name]) opts.push({ key: ROLE.name, label: ROLE.name });
     SORT_NUM.forEach(function (l) { if (present[l]) opts.push({ key: l, label: l }); });
     if (present['レーティング']) opts.push({ key: 'レーティング', label: 'レーティング' });
@@ -748,6 +788,9 @@
       case ROLE.updated: { var raw = byLabel[ROLE.updated] ?
         String(byLabel[ROLE.updated].val || '') : '';
         var d = Date.parse(raw.replace(/\//g, '-')); return isNaN(d) ? null : d; }
+      case '日付': { var draw = byLabel['日付'] ?
+        String(byLabel['日付'].val || '') : '';
+        var dd = Date.parse(draw.replace(/\//g, '-')); return isNaN(dd) ? null : dd; }
       default: return num(key);
     }
   }
@@ -791,12 +834,22 @@
       var stamp = byLabel[ROLE.updated] ? byLabel[ROLE.updated].val : '';
 
       var ch = firstChar(name || ticker || '?');
+      // ピル: 保有/監視は種別ラベル、売買履歴は売買区分（買い=緑 / 売り=赤）。
+      var pillCls, pillTxt;
+      if (isHistoryTab()) {
+        var bs = byLabel[BUY_SELL] ?
+          String(byLabel[BUY_SELL].val == null ? '' : byLabel[BUY_SELL].val).trim() : '';
+        pillTxt = bs || '—';
+        pillCls = bs === '売り' ? ' sell' : ' buy';
+      } else {
+        pillTxt = isHoldings ? '保有' : '監視';
+        pillCls = isHoldings ? '' : ' watch';
+      }
       var c = '<div class="card"><div class="card-top">';
       c += '<div class="avatar">' + esc(ch) + '</div>';
       c += '<div class="top-mid"><div class="name-row">' +
         '<span class="name">' + esc(name || '(名称未設定)') + '</span>' +
-        '<span class="pill' + (isHoldings ? '' : ' watch') + '">' +
-        (isHoldings ? '保有' : '監視') + '</span></div>';
+        '<span class="pill' + pillCls + '">' + esc(pillTxt) + '</span></div>';
       if (ticker) c += '<div class="ticker">' + esc(ticker) + '</div>';
       c += '</div>';
       c += '<div class="top-right">';
@@ -927,23 +980,34 @@
   }
 
   function openAdd() {
-    state.editing = 'new'; state.original = {}; state.required = [ROLE.name];
+    state.editing = 'new'; state.original = {};
+    state.required = isHistoryTab()
+      ? ['日付', ROLE.name, BUY_SELL, '約定単価', '株数']
+      : [ROLE.name];
     $('eyebrow').textContent = '新規登録';
-    $('sheetTitle').innerHTML = esc(state.tab) + ' <small>に銘柄を追加</small>';
+    var addLabel = isHistoryTab() ? ' <small>に取引を追加</small>' : ' <small>に銘柄を追加</small>';
+    $('sheetTitle').innerHTML = esc(state.tab) + addLabel;
     $('dangerZone').style.display = 'none';
     var form = $('formFields'); form.innerHTML = '';
     state.headers.forEach(function (h) {
-      if (!h.editable || h.label === ROLE.ticker) return;
+      if (!h.editable) return;
+      // 売買履歴は Ticker を手入力する（自動解決しない）。他タブは register-ticker
+      // スキルが後で埋めるため Ticker 入力を隠す。
+      if (h.label === ROLE.ticker && !isHistoryTab()) return;
       var wrap = document.createElement('div');
       wrap.className = 'fld';
-      wrap.innerHTML = fieldHtml(h.label, '', h.label === ROLE.name);
+      wrap.innerHTML = fieldHtml(h.label, '', state.required.indexOf(h.label) >= 0);
       form.appendChild(wrap);
       state.original[h.label] = '';
     });
     var ro = $('roFields');
-    ro.innerHTML = '<div class="h">Ticker はあとで自動解決します</div>' +
-      '<div class="note-line">register-ticker スキルが候補を提示 → 選択 → 自動更新されます。</div>';
-    ro.style.display = 'block';
+    if (isHistoryTab()) {
+      ro.innerHTML = ''; ro.style.display = 'none';
+    } else {
+      ro.innerHTML = '<div class="h">Ticker はあとで自動解決します</div>' +
+        '<div class="note-line">register-ticker スキルが候補を提示 → 選択 → 自動更新されます。</div>';
+      ro.style.display = 'block';
+    }
     refreshProgress();
     openSheet();
   }
@@ -959,14 +1023,33 @@
     state.editing = null;
   }
 
+  // POSITIVE_NUM_FIELDS のうち入力されているものが正の数か検証する。最初に違反した
+  // フィールドのエラーメッセージを返す（無ければ null）。判定は sortlib の純関数
+  // isPositiveNumberStr に委譲（Node でテスト済み）。
+  function numericFieldError(fields) {
+    for (var i = 0; i < POSITIVE_NUM_FIELDS.length; i++) {
+      var f = POSITIVE_NUM_FIELDS[i];
+      if (fields[f] == null || String(fields[f]).trim() === '') continue;
+      if (!isPositiveNumberStr(fields[f])) return f + 'は正の数を入力してください';
+    }
+    return null;
+  }
+
   function saveNew() {
     var fields = {};
     [].forEach.call(document.querySelectorAll('[data-h]'), function (el) {
       if (String(el.value).trim()) fields[el.getAttribute('data-h')] = el.value;
     });
-    if (!fields[ROLE.name] || !String(fields[ROLE.name]).trim()) {
-      toast('銘柄名を入力してください'); return;
+    // 必須項目チェック（タブごとに state.required を openAdd で設定済み）。
+    for (var i = 0; i < state.required.length; i++) {
+      var rq = state.required[i];
+      if (!fields[rq] || !String(fields[rq]).trim()) {
+        toast(rq + 'を入力してください'); return;
+      }
     }
+    // 数値項目（約定単価/株数）は正の数であること。
+    var numErr = numericFieldError(fields);
+    if (numErr) { toast(numErr); return; }
     runSave('追加中…', '追加しました', '追加に失敗: ', function (runner) {
       runner.addRow(state.tab, fields);
     });
@@ -980,6 +1063,8 @@
       if (el.value !== state.original[h]) changed[h] = el.value;
     });
     if (Object.keys(changed).length === 0) { closeSheet(); return; }
+    var numErr = numericFieldError(changed);
+    if (numErr) { toast(numErr); return; }
     runSave('保存中…', '保存しました', '保存に失敗: ', function (runner) {
       runner.saveRow(state.tab, state.editing, changed);
     });
@@ -991,7 +1076,7 @@
     var b = $('deleteBtn');
     b.disabled = false;
     b.classList.remove('confirm');
-    b.textContent = 'この銘柄を削除';
+    b.textContent = isHistoryTab() ? 'この取引を削除' : 'この銘柄を削除';
   }
   function onDeleteClick() {
     var b = $('deleteBtn');
@@ -1001,11 +1086,15 @@
       b.textContent = 'この操作は取り消せません — 削除する';
       return;
     }
-    // 2nd tap: execute. Identity = the sheet's CURRENT values captured at openEdit
-    // (state.original), NOT live input, so it matches what the server re-reads.
+    // 2nd tap: execute. Identity = openEdit 時にキャプチャした全 editable 列の
+    // CURRENT シート値（state.original。ライブ入力ではない）なので、サーバが読み直す
+    // 値と一致する。取引台帳は同じ ticker+name が複数行に現れるため、全 editable 列の
+    // タプルでないと一意に同定できない。
     var tab = state.tab, rowNum = state.editing;
-    var ident = { ticker: state.original[ROLE.ticker] || '',
-                  name: state.original[ROLE.name] || '' };
+    var ident = {};
+    Object.keys(state.original).forEach(function (k) {
+      ident[k] = state.original[k] == null ? '' : state.original[k];
+    });
     b.disabled = true; b.classList.remove('confirm'); b.textContent = '削除中…';
     google.script.run.withSuccessHandler(function () {
       closeSheet(); toast('削除しました'); load();
