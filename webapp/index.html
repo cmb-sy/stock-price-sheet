@@ -237,6 +237,13 @@
     .ro .row .rv { font-weight: 600; text-align: right; word-break: break-word; }
     .actions { position: sticky; bottom: 0; background: var(--card);
       display: flex; gap: 10px; padding: 12px 0 4px; }
+    .danger { margin-top: 4px; }
+    .danger-div { height: 1px; background: #f0f0f0; margin: 4px 0 12px; }
+    .btn.del { width: 100%; color: var(--neg); border: 1px solid #f3c0c0;
+      background: #fff; }
+    .btn.del:active { background: #fff5f5; }
+    .btn.del.confirm { color: #fff; background: var(--neg); border-color: var(--neg); }
+    .btn.del:disabled { opacity: .6; }
     .btn { flex: 1; padding: 13px; border-radius: 12px; font: inherit; font-weight: 700;
       font-size: 15px; cursor: pointer; border: 1px solid var(--line); background: #fff; }
     .btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
@@ -294,6 +301,10 @@
     <div class="actions">
       <button class="btn" id="cancelBtn">キャンセル</button>
       <button class="btn primary" id="saveBtn">保存<span class="kbd">⌘⏎</span></button>
+    </div>
+    <div class="danger" id="dangerZone">
+      <div class="danger-div"></div>
+      <button class="btn del" id="deleteBtn" type="button">この銘柄を削除</button>
     </div>
   </div>
 
@@ -908,6 +919,8 @@
       wrap.innerHTML = fieldHtml(h.label, val, false);
       form.appendChild(wrap);
     });
+    $('dangerZone').style.display = 'block';
+    resetDelete();
     buildReference(byLabel);
     refreshProgress();
     openSheet();
@@ -917,6 +930,7 @@
     state.editing = 'new'; state.original = {}; state.required = [ROLE.name];
     $('eyebrow').textContent = '新規登録';
     $('sheetTitle').innerHTML = esc(state.tab) + ' <small>に銘柄を追加</small>';
+    $('dangerZone').style.display = 'none';
     var form = $('formFields'); form.innerHTML = '';
     state.headers.forEach(function (h) {
       if (!h.editable || h.label === ROLE.ticker) return;
@@ -941,6 +955,7 @@
   function closeSheet() {
     $('scrim').classList.remove('open'); $('sheet').classList.remove('open');
     $('formFields').removeEventListener('input', refreshProgress);
+    resetDelete();
     state.editing = null;
   }
 
@@ -970,6 +985,35 @@
     });
   }
 
+  var delConfirm = false;
+  function resetDelete() {
+    delConfirm = false;
+    var b = $('deleteBtn');
+    b.disabled = false;
+    b.classList.remove('confirm');
+    b.textContent = 'この銘柄を削除';
+  }
+  function onDeleteClick() {
+    var b = $('deleteBtn');
+    if (!delConfirm) { // 1st tap: arm confirmation
+      delConfirm = true;
+      b.classList.add('confirm');
+      b.textContent = 'この操作は取り消せません — 削除する';
+      return;
+    }
+    // 2nd tap: execute. Identity = the sheet's CURRENT values captured at openEdit
+    // (state.original), NOT live input, so it matches what the server re-reads.
+    var tab = state.tab, rowNum = state.editing;
+    var ident = { ticker: state.original[ROLE.ticker] || '',
+                  name: state.original[ROLE.name] || '' };
+    b.disabled = true; b.textContent = '削除中…';
+    google.script.run.withSuccessHandler(function () {
+      resetDelete(); closeSheet(); toast('削除しました'); load();
+    }).withFailureHandler(function (e) {
+      resetDelete(); closeSheet(); toast('削除に失敗: ' + errMsg(e)); load();
+    }).deleteRow(tab, rowNum, ident);
+  }
+
   function fail(e) {
     $('list').innerHTML = '<div class="empty"><div class="ico">⚠️</div><div>' +
       esc('読み込みエラー: ' + errMsg(e)) + '</div></div>';
@@ -978,6 +1022,7 @@
   $('cancelBtn').onclick = closeSheet;
   $('closeBtn').onclick = closeSheet;
   $('saveBtn').onclick = save;
+  $('deleteBtn').onclick = onDeleteClick;
   $('addFab').onclick = openAdd;
   $('scrim').onclick = closeSheet;
   $('sortSel').onchange = function () { state.sortKey = this.value || null; render(); };
