@@ -980,23 +980,34 @@
   }
 
   function openAdd() {
-    state.editing = 'new'; state.original = {}; state.required = [ROLE.name];
+    state.editing = 'new'; state.original = {};
+    state.required = isHistoryTab()
+      ? ['日付', ROLE.name, BUY_SELL, '約定単価', '株数']
+      : [ROLE.name];
     $('eyebrow').textContent = '新規登録';
-    $('sheetTitle').innerHTML = esc(state.tab) + ' <small>に銘柄を追加</small>';
+    var addLabel = isHistoryTab() ? ' <small>に取引を追加</small>' : ' <small>に銘柄を追加</small>';
+    $('sheetTitle').innerHTML = esc(state.tab) + addLabel;
     $('dangerZone').style.display = 'none';
     var form = $('formFields'); form.innerHTML = '';
     state.headers.forEach(function (h) {
-      if (!h.editable || h.label === ROLE.ticker) return;
+      if (!h.editable) return;
+      // 売買履歴は Ticker を手入力する（自動解決しない）。他タブは register-ticker
+      // スキルが後で埋めるため Ticker 入力を隠す。
+      if (h.label === ROLE.ticker && !isHistoryTab()) return;
       var wrap = document.createElement('div');
       wrap.className = 'fld';
-      wrap.innerHTML = fieldHtml(h.label, '', h.label === ROLE.name);
+      wrap.innerHTML = fieldHtml(h.label, '', state.required.indexOf(h.label) >= 0);
       form.appendChild(wrap);
       state.original[h.label] = '';
     });
     var ro = $('roFields');
-    ro.innerHTML = '<div class="h">Ticker はあとで自動解決します</div>' +
-      '<div class="note-line">register-ticker スキルが候補を提示 → 選択 → 自動更新されます。</div>';
-    ro.style.display = 'block';
+    if (isHistoryTab()) {
+      ro.innerHTML = ''; ro.style.display = 'none';
+    } else {
+      ro.innerHTML = '<div class="h">Ticker はあとで自動解決します</div>' +
+        '<div class="note-line">register-ticker スキルが候補を提示 → 選択 → 自動更新されます。</div>';
+      ro.style.display = 'block';
+    }
     refreshProgress();
     openSheet();
   }
@@ -1012,14 +1023,33 @@
     state.editing = null;
   }
 
+  // POSITIVE_NUM_FIELDS のうち入力されているものが正の数か検証する。最初に違反した
+  // フィールドのエラーメッセージを返す（無ければ null）。判定は sortlib の純関数
+  // isPositiveNumberStr に委譲（Node でテスト済み）。
+  function numericFieldError(fields) {
+    for (var i = 0; i < POSITIVE_NUM_FIELDS.length; i++) {
+      var f = POSITIVE_NUM_FIELDS[i];
+      if (fields[f] == null || String(fields[f]).trim() === '') continue;
+      if (!isPositiveNumberStr(fields[f])) return f + 'は正の数を入力してください';
+    }
+    return null;
+  }
+
   function saveNew() {
     var fields = {};
     [].forEach.call(document.querySelectorAll('[data-h]'), function (el) {
       if (String(el.value).trim()) fields[el.getAttribute('data-h')] = el.value;
     });
-    if (!fields[ROLE.name] || !String(fields[ROLE.name]).trim()) {
-      toast('銘柄名を入力してください'); return;
+    // 必須項目チェック（タブごとに state.required を openAdd で設定済み）。
+    for (var i = 0; i < state.required.length; i++) {
+      var rq = state.required[i];
+      if (!fields[rq] || !String(fields[rq]).trim()) {
+        toast(rq + 'を入力してください'); return;
+      }
     }
+    // 数値項目（約定単価/株数）は正の数であること。
+    var numErr = numericFieldError(fields);
+    if (numErr) { toast(numErr); return; }
     runSave('追加中…', '追加しました', '追加に失敗: ', function (runner) {
       runner.addRow(state.tab, fields);
     });
@@ -1033,6 +1063,8 @@
       if (el.value !== state.original[h]) changed[h] = el.value;
     });
     if (Object.keys(changed).length === 0) { closeSheet(); return; }
+    var numErr = numericFieldError(changed);
+    if (numErr) { toast(numErr); return; }
     runSave('保存中…', '保存しました', '保存に失敗: ', function (runner) {
       runner.saveRow(state.tab, state.editing, changed);
     });
