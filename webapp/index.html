@@ -41,6 +41,15 @@
       box-shadow: 0 1px 2px rgba(16,24,40,.12); }
     .meta { display: flex; justify-content: space-between; align-items: center;
       padding: 8px 2px 10px; color: var(--sub); font-size: 12px; }
+    .sortbox { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; }
+    .sort-ico { color: #9ca3af; font-size: 13px; }
+    .sortbox select { font: inherit; font-size: 13px; color: #374151;
+      background: #fff; border: 1px solid #e5e7eb; border-radius: 8px;
+      padding: 4px 8px; max-width: 46vw; }
+    .dirbtn { font: inherit; font-size: 14px; line-height: 1; color: #374151;
+      background: #fff; border: 1px solid #e5e7eb; border-radius: 8px;
+      padding: 5px 9px; cursor: pointer; }
+    .dirbtn:active { background: #f3f4f6; }
 
     /* ---- list ---- */
     main { padding: 6px 12px 24px; max-width: 720px; margin: 0 auto; }
@@ -258,7 +267,14 @@
   <header>
     <h1>保有・監視シート</h1>
     <div class="segmented" id="tabs"></div>
-    <div class="meta"><span id="count"></span><span id="hint"></span></div>
+    <div class="meta"><span id="count"></span><span id="hint"></span>
+      <span class="sortbox" id="sortbox" style="display:none">
+        <span class="sort-ico">⇅</span>
+        <select id="sortSel" aria-label="並び替える指標"></select>
+        <button id="sortDir" class="dirbtn" type="button"
+          aria-label="昇順と降順を切り替え">↓</button>
+      </span>
+    </div>
   </header>
 
   <main id="list"></main>
@@ -450,10 +466,11 @@
   function selectTab(tab, btn) {
     if (state.tab === tab) return;
     state.tab = tab;
+    state.sortKey = null; state.sortDir = 'desc';
     [].forEach.call(document.querySelectorAll('.seg'), function (e) { e.classList.remove('active'); });
     if (btn) btn.classList.add('active');
     $('addFab').classList.remove('show');
-    if (tab === GLOSSARY_TAB) { renderGlossary(); return; }
+    if (tab === GLOSSARY_TAB) { $('sortbox').style.display = 'none'; renderGlossary(); return; }
     load();
   }
 
@@ -529,6 +546,7 @@
     $('count').textContent = ''; $('hint').textContent = '';
     google.script.run.withSuccessHandler(function (data) {
       state.headers = data.headers; state.rows = data.rows;
+      buildSortUI();
       render();
       $('count').textContent = data.rows.length + ' 銘柄';
       $('hint').textContent = '✎ は編集できる項目';
@@ -727,6 +745,16 @@
       ? sortRows(state.rows, function (r) { return sortValue(r, state.sortKey); },
           state.sortDir)
       : state.rows.slice();
+  }
+
+  function buildSortUI() {
+    var sel = $('sortSel');
+    sel.innerHTML = sortOptions().map(function (o) {
+      return '<option value="' + esc(o.key) + '">' + esc(o.label) + '</option>';
+    }).join('');
+    sel.value = state.sortKey || '';
+    $('sortDir').textContent = state.sortDir === 'asc' ? '↑' : '↓';
+    $('sortbox').style.display = '';
   }
 
   function render() {
@@ -949,6 +977,12 @@
   $('saveBtn').onclick = save;
   $('addFab').onclick = openAdd;
   $('scrim').onclick = closeSheet;
+  $('sortSel').onchange = function () { state.sortKey = this.value || null; render(); };
+  $('sortDir').onclick = function () {
+    state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
+    this.textContent = state.sortDir === 'asc' ? '↑' : '↓';
+    render();
+  };
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') closeSheet();
     if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && state.editing != null) {
