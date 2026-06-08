@@ -1006,11 +1006,11 @@
     var tab = state.tab, rowNum = state.editing;
     var ident = { ticker: state.original[ROLE.ticker] || '',
                   name: state.original[ROLE.name] || '' };
-    b.disabled = true; b.textContent = '削除中…';
+    b.disabled = true; b.classList.remove('confirm'); b.textContent = '削除中…';
     google.script.run.withSuccessHandler(function () {
-      resetDelete(); closeSheet(); toast('削除しました'); load();
+      closeSheet(); toast('削除しました'); load();
     }).withFailureHandler(function (e) {
-      resetDelete(); closeSheet(); toast('削除に失敗: ' + errMsg(e)); load();
+      closeSheet(); toast('削除に失敗: ' + errMsg(e)); load();
     }).deleteRow(tab, rowNum, ident);
   }
 
