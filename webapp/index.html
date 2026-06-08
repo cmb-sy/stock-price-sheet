@@ -1076,7 +1076,7 @@
     var b = $('deleteBtn');
     b.disabled = false;
     b.classList.remove('confirm');
-    b.textContent = 'この銘柄を削除';
+    b.textContent = isHistoryTab() ? 'この取引を削除' : 'この銘柄を削除';
   }
   function onDeleteClick() {
     var b = $('deleteBtn');
@@ -1086,11 +1086,15 @@
       b.textContent = 'この操作は取り消せません — 削除する';
       return;
     }
-    // 2nd tap: execute. Identity = the sheet's CURRENT values captured at openEdit
-    // (state.original), NOT live input, so it matches what the server re-reads.
+    // 2nd tap: execute. Identity = openEdit 時にキャプチャした全 editable 列の
+    // CURRENT シート値（state.original。ライブ入力ではない）なので、サーバが読み直す
+    // 値と一致する。取引台帳は同じ ticker+name が複数行に現れるため、全 editable 列の
+    // タプルでないと一意に同定できない。
     var tab = state.tab, rowNum = state.editing;
-    var ident = { ticker: state.original[ROLE.ticker] || '',
-                  name: state.original[ROLE.name] || '' };
+    var ident = {};
+    Object.keys(state.original).forEach(function (k) {
+      ident[k] = state.original[k] == null ? '' : state.original[k];
+    });
     b.disabled = true; b.classList.remove('confirm'); b.textContent = '削除中…';
     google.script.run.withSuccessHandler(function () {
       closeSheet(); toast('削除しました'); load();
