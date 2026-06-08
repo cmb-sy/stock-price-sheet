@@ -212,6 +212,9 @@ function deleteRow(tabName, rowNum, expected) {
   var headerRow = _headerRow(sh);
   var tickerIdx = headerRow.indexOf(LABEL_TICKER);
   var nameIdx = headerRow.indexOf(LABEL_NAME);
+  // Without either identity column the staleness guard cannot verify the row;
+  // refuse rather than silently delete by row number alone.
+  if (tickerIdx < 0 && nameIdx < 0) throw new Error('ヘッダが見つかりません');
   var cur = sh.getRange(rowNum, 1, 1, sh.getLastColumn()).getDisplayValues()[0];
   var curTicker = tickerIdx >= 0 ? String(cur[tickerIdx] || '').trim() : '';
   var curName = nameIdx >= 0 ? String(cur[nameIdx] || '').trim() : '';
