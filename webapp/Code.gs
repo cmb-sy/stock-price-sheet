@@ -67,9 +67,15 @@ function doGet() {
       '</div>'
     ).setTitle('アクセス権なし');
   }
-  return HtmlService.createHtmlOutputFromFile('index')
+  return HtmlService.createTemplateFromFile('index').evaluate()
     .setTitle('保有・監視シート')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+}
+
+// Inlines another project file (e.g. sortlib.html) into a templated page via
+// <?!= include('name'); ?>. Returns the file's raw content (no escaping).
+function include(name) {
+  return HtmlService.createHtmlOutputFromFile(name).getContent();
 }
 
 function _sheet(tabName) {
@@ -187,6 +193,36 @@ function addRow(tabName, fields) {
 
   sh.appendRow(rowArr);
   return sh.getLastRow();
+}
+
+/**
+ * Deletes one row from a tab. Guards against deleting the wrong row when the sheet
+ * shifted under the client (Track A/B or another session inserting/removing rows):
+ * reads the row's CURRENT Ticker + 銘柄名 (display values) and refuses unless they
+ * match `expected` = { ticker, name } that the client was looking at. Returns true on
+ * success. Never returns or logs cell values (PII/ticker safety).
+ */
+function deleteRow(tabName, rowNum, expected) {
+  _guard();
+  var sh = _sheet(tabName);
+  rowNum = parseInt(rowNum, 10);
+  if (!(rowNum > HEADER_ROW)) throw new Error('無効な行番号です');
+  if (rowNum > sh.getLastRow()) throw new Error('行が存在しません');
+
+  var headerRow = _headerRow(sh);
+  var tickerIdx = headerRow.indexOf(LABEL_TICKER);
+  var nameIdx = headerRow.indexOf(LABEL_NAME);
+  var cur = sh.getRange(rowNum, 1, 1, sh.getLastColumn()).getDisplayValues()[0];
+  var curTicker = tickerIdx >= 0 ? String(cur[tickerIdx] || '').trim() : '';
+  var curName = nameIdx >= 0 ? String(cur[nameIdx] || '').trim() : '';
+  var expTicker = String((expected && expected.ticker) || '').trim();
+  var expName = String((expected && expected.name) || '').trim();
+  if (curTicker !== expTicker || curName !== expName) {
+    throw new Error('行の内容が変わっています。再読み込みしてください');
+  }
+
+  sh.deleteRow(rowNum);
+  return true;
 }
 
 // Numbers (incl. comma-grouped) -> Number so the cell's number format applies.
