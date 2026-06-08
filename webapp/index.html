@@ -574,6 +574,14 @@
     $('count').textContent = ''; $('hint').textContent = '';
     google.script.run.withSuccessHandler(function (data) {
       state.headers = data.headers; state.rows = data.rows;
+      // シート順（未ソート）選択肢を廃止したため、各タブは必ず既定キーで整列させる。
+      // 売買履歴は日付降順（新しい取引が上）、保有/監視は銘柄名昇順（中立で決定的）。
+      // selectTab が sortKey=null にリセットするので、タブ切替ごとにこの既定が適用される。
+      // ユーザーが他キーを選んだ後の再読込（load 再実行）ではその選択を尊重する。
+      if (!state.sortKey) {
+        var ds = isHistoryTab() ? { key: '日付', dir: 'desc' } : { key: ROLE.name, dir: 'asc' };
+        state.sortKey = ds.key; state.sortDir = ds.dir;
+      }
       buildSortUI();
       render();
       $('count').textContent = data.rows.length + ' 銘柄';
@@ -735,7 +743,13 @@
   function sortOptions() {
     var present = {};
     state.headers.forEach(function (h) { present[h.label] = 1; });
-    var opts = [{ key: '', label: 'シート順' }];
+    var opts = [];
+    if (isHistoryTab()) {
+      ['日付', '約定単価', '株数', ROLE.name].forEach(function (l) {
+        if (present[l]) opts.push({ key: l, label: l });
+      });
+      return opts;
+    }
     if (present[ROLE.name]) opts.push({ key: ROLE.name, label: ROLE.name });
     SORT_NUM.forEach(function (l) { if (present[l]) opts.push({ key: l, label: l }); });
     if (present['レーティング']) opts.push({ key: 'レーティング', label: 'レーティング' });
@@ -774,6 +788,9 @@
       case ROLE.updated: { var raw = byLabel[ROLE.updated] ?
         String(byLabel[ROLE.updated].val || '') : '';
         var d = Date.parse(raw.replace(/\//g, '-')); return isNaN(d) ? null : d; }
+      case '日付': { var draw = byLabel['日付'] ?
+        String(byLabel['日付'].val || '') : '';
+        var dd = Date.parse(draw.replace(/\//g, '-')); return isNaN(dd) ? null : dd; }
       default: return num(key);
     }
   }
