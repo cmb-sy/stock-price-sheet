@@ -284,6 +284,7 @@
   <button class="fab" id="addFab"><span class="plus">＋</span>銘柄を追加</button>
   <div class="toast" id="toast"></div>
 
+  <?!= include('sortlib'); ?>
 <script>
   var ROLE = { name: '銘柄名', price: '現在株価', ticker: 'Ticker', updated: '更新時刻',
     theme: '業界やテーマ' };
@@ -379,8 +380,9 @@
     ]}
   ];
 
-  var state = { tab: null, headers: [], rows: [], editing: null, original: {},
-    holdingsTab: null, required: [], noteText: {} };
+  var state = { tab: null, headers: [], rows: [], view: [], editing: null,
+    original: {}, holdingsTab: null, required: [], noteText: {},
+    sortKey: null, sortDir: 'desc' };
 
   function $(id) { return document.getElementById(id); }
   function esc(s) {
@@ -666,6 +668,67 @@
     return h;
   }
 
+  // Curated sortable columns. A header-based option appears only if its label is
+  // present in the current tab's headers; derived options appear per tab type. Order
+  // here is the menu order.
+  var SORT_NUM = ['現在株価', '年初来安値との乖離率', 'PER', 'PBR', '配当利回り',
+    '時価総額', '現在EPS', '年間EPS前年比（%）', 'アナリスト予想株価', '理論株価'];
+  var HOLDINGS_DERIVED = ['評価額', '評価損益額', '評価損益率', '目標との乖離率'];
+  var WATCH_DERIVED = ['購入検討との乖離率', '予想乖離率'];
+
+  function sortOptions() {
+    var present = {};
+    state.headers.forEach(function (h) { present[h.label] = 1; });
+    var opts = [{ key: '', label: 'シート順' }];
+    if (present[ROLE.name]) opts.push({ key: ROLE.name, label: ROLE.name });
+    SORT_NUM.forEach(function (l) { if (present[l]) opts.push({ key: l, label: l }); });
+    if (present['レーティング']) opts.push({ key: 'レーティング', label: 'レーティング' });
+    var isH = state.tab === state.holdingsTab;
+    (isH ? HOLDINGS_DERIVED : WATCH_DERIVED).forEach(function (l) {
+      opts.push({ key: l, label: l });
+    });
+    if (present[ROLE.updated]) opts.push({ key: ROLE.updated, label: ROLE.updated });
+    return opts;
+  }
+
+  // Sortable value for one row under `key`: number | string | null. null sinks (see
+  // compareKeys). Mirrors derivedMetrics formulas; division guards drop 0 denominators.
+  function sortValue(row, key) {
+    var byLabel = byLabelOf(state.headers, row.cells);
+    function num(l) { return byLabel[l] ? parseNum(byLabel[l].val) : null; }
+    var cur = num(ROLE.price);
+    switch (key) {
+      case '評価額': { var s = num(DERIVE.shares);
+        return (cur != null && s != null) ? cur * s : null; }
+      case '評価損益額': { var a = num(DERIVE.acquire), s2 = num(DERIVE.shares);
+        return (cur != null && a != null && s2 != null) ? (cur - a) * s2 : null; }
+      case '評価損益率': { var a2 = num(DERIVE.acquire);
+        return (cur != null && a2) ? (cur - a2) / a2 * 100 : null; }
+      case '目標との乖離率': { var t = num(DERIVE.targetSell);
+        return (cur != null && t) ? (cur - t) / t * 100 : null; }
+      case '購入検討との乖離率': { var my = num(DERIVE.myTarget);
+        return (cur != null && my) ? (cur - my) / my * 100 : null; }
+      case '予想乖離率': { var an = num(DERIVE.analyst);
+        return (cur != null && an != null && cur) ? (an - cur) / cur * 100 : null; }
+      case ROLE.name: { var nm = byLabel[ROLE.name] ?
+        String(byLabel[ROLE.name].val == null ? '' : byLabel[ROLE.name].val).trim() : '';
+        return nm || null; }
+      case 'レーティング': return byLabel['レーティング'] ?
+        ratingRank(byLabel['レーティング'].val) : null;
+      case ROLE.updated: { var raw = byLabel[ROLE.updated] ?
+        String(byLabel[ROLE.updated].val || '') : '';
+        var d = Date.parse(raw.replace(/\//g, '-')); return isNaN(d) ? null : d; }
+      default: return num(key);
+    }
+  }
+
+  function applySort() {
+    state.view = state.sortKey
+      ? sortRows(state.rows, function (r) { return sortValue(r, state.sortKey); },
+          state.sortDir)
+      : state.rows.slice();
+  }
+
   function render() {
     var H = state.headers;
     state.noteText = {};
@@ -674,10 +737,11 @@
         '<div>表示できる銘柄がありません</div></div>';
       return;
     }
+    applySort();
     var isHoldings = state.tab === state.holdingsTab;
     var out = isHoldings ? portfolioHtml() : '';
 
-    state.rows.forEach(function (row, idx) {
+    state.view.forEach(function (row, idx) {
       var byLabel = byLabelOf(H, row.cells);
       var name = byLabel[ROLE.name] ? byLabel[ROLE.name].val : '';
       var ticker = byLabel[ROLE.ticker] ? byLabel[ROLE.ticker].val : '';
@@ -793,7 +857,7 @@
   }
 
   function openEdit(idx) {
-    var row = state.rows[idx];
+    var row = state.view[idx];
     state.editing = row.row; state.original = {}; state.required = [];
     var byLabel = byLabelOf(state.headers, row.cells);
     var name = byLabel[ROLE.name] ? byLabel[ROLE.name].val : '';
