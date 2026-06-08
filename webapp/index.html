@@ -467,10 +467,11 @@
     if (state.tab === tab) return;
     state.tab = tab;
     state.sortKey = null; state.sortDir = 'desc';
+    $('sortbox').style.display = 'none';  // hide synchronously; buildSortUI() re-shows on data load
     [].forEach.call(document.querySelectorAll('.seg'), function (e) { e.classList.remove('active'); });
     if (btn) btn.classList.add('active');
     $('addFab').classList.remove('show');
-    if (tab === GLOSSARY_TAB) { $('sortbox').style.display = 'none'; renderGlossary(); return; }
+    if (tab === GLOSSARY_TAB) { renderGlossary(); return; }
     load();
   }
 
@@ -747,13 +748,15 @@
       : state.rows.slice();
   }
 
+  function dirGlyph() { return state.sortDir === 'asc' ? '↑' : '↓'; }
+
   function buildSortUI() {
     var sel = $('sortSel');
     sel.innerHTML = sortOptions().map(function (o) {
       return '<option value="' + esc(o.key) + '">' + esc(o.label) + '</option>';
     }).join('');
     sel.value = state.sortKey || '';
-    $('sortDir').textContent = state.sortDir === 'asc' ? '↑' : '↓';
+    $('sortDir').textContent = dirGlyph();
     $('sortbox').style.display = '';
   }
 
@@ -980,7 +983,7 @@
   $('sortSel').onchange = function () { state.sortKey = this.value || null; render(); };
   $('sortDir').onclick = function () {
     state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
-    this.textContent = state.sortDir === 'asc' ? '↑' : '↓';
+    this.textContent = dirGlyph();
     render();
   };
   document.addEventListener('keydown', function (e) {
