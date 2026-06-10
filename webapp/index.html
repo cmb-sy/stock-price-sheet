@@ -443,13 +443,7 @@
     clearTimeout(toast._t); toast._t = setTimeout(function () { t.classList.remove('show'); }, 1800);
   }
 
-  // Parse a display string ("3,584", "¥1,200", "12.3%") to a number, or null.
-  function parseNum(v) {
-    var s = String(v == null ? '' : v).replace(/[^0-9.\-]/g, '');
-    if (s === '' || s === '-' || s === '.') return null;
-    var n = parseFloat(s);
-    return isNaN(n) ? null : n;
-  }
+  // parseNum（表示文字列 -> number）は sortlib.html に移動（単一ソース・Node テスト対象）。
   function yen(n) { return '¥' + Math.round(n).toLocaleString('ja-JP'); }
   function yenSigned(n) {
     return (n >= 0 ? '+' : '−') + '¥' + Math.abs(Math.round(n)).toLocaleString('ja-JP');
@@ -572,8 +566,14 @@
   function load() {
     skeleton();
     $('count').textContent = ''; $('hint').textContent = '';
+    // seq はタブ切替/再読込と非同期応答の競合ガード。古い応答は黙って捨てる。
+    state.loadSeq = (state.loadSeq || 0) + 1;
+    var seq = state.loadSeq;
+    state.recon = null;
     google.script.run.withSuccessHandler(function (data) {
+      if (seq !== state.loadSeq) return;
       state.headers = data.headers; state.rows = data.rows;
+      state.loadedSeq = seq;
       // シート順（未ソート）選択肢を廃止したため、各タブは必ず既定キーで整列させる。
       // 売買履歴は日付降順（新しい取引が上）、保有/監視は銘柄名昇順（中立で決定的）。
       // selectTab が sortKey=null にリセットするので、タブ切替ごとにこの既定が適用される。
@@ -588,6 +588,17 @@
       $('hint').textContent = '✎ は編集できる項目';
       $('addFab').classList.toggle('show', state.tab !== state.holdingsTab);
     }).withFailureHandler(fail).getRows(state.tab);
+
+    // 台帳照合: 保有タブのときだけ売買履歴を並列取得し、届き次第チップを再描画する
+    // （2段描画）。取得失敗は照合なしで degrade（toast なし）。本体データが未着なら
+    // state.recon を置くだけにして、本体側の render が拾う。
+    if (state.tab === state.holdingsTab) {
+      google.script.run.withSuccessHandler(function (h) {
+        if (seq !== state.loadSeq) return;
+        state.recon = ledgerPositions(h.headers, h.rows);
+        if (state.loadedSeq === seq) render();
+      }).withFailureHandler(function () {}).getRows(HISTORY_TAB);
+    }
   }
 
   function valueHtml(val) {
@@ -667,6 +678,26 @@
       }
     }
     return out;
+  }
+
+  // 台帳照合チップ。売買履歴から導出したポジション（state.recon）と保有カードの
+  // 手入力値（取得株数/取得株価）を照合する。表示のみで自動反映はしない（設計制約）。
+  // 台帳に該当 Ticker がない、または全売却（ネット0株でクリーン）なら表示しない。
+  function reconMetric(byLabel) {
+    var raw = byLabel[ROLE.ticker] ? byLabel[ROLE.ticker].val : '';
+    var t = String(raw == null ? '' : raw).trim().toUpperCase();
+    if (!t || !state.recon[t]) return null;
+    var pos = state.recon[t];
+    if (!pos.oversold && pos.invalid === 0 && pos.shares === 0) return null;
+    var heldSh = byLabel[DERIVE.shares] ? parseNum(byLabel[DERIVE.shares].val) : null;
+    var heldAvg = byLabel[DERIVE.acquire] ? parseNum(byLabel[DERIVE.acquire].val) : null;
+    var st = reconcileHolding(pos, heldSh, heldAvg);
+    if (st === 'match') return { k: '台帳照合', html: '✓ 一致', cls: 'pos' };
+    if (st === 'warn') {
+      return { k: '台帳照合', html: esc('⚠ ' + (pos.oversold ? '売り超過' : '解析不能行あり')), cls: 'neg' };
+    }
+    var detail = pos.shares + '株' + (pos.avgPrice !== null ? ' / ' + yen(pos.avgPrice) : '');
+    return { k: '台帳照合', html: esc('台帳: ' + detail), cls: 'neg' };
   }
 
   // Standalone (non-paired, non-note, non-role) column chips. Returns [{k,html,cls,ed}].
@@ -863,6 +894,10 @@
       }
 
       var metrics = columnMetrics(H, byLabel).concat(derivedMetrics(byLabel, isHoldings));
+      if (isHoldings && state.recon) {
+        var rm = reconMetric(byLabel);
+        if (rm) metrics.push(rm);
+      }
       if (metrics.length) {
         c += '<div class="grid">';
         metrics.forEach(function (m) { c += metricCellHtml(m); });

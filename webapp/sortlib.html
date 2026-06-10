@@ -38,14 +38,94 @@
     return idx.map(function (i) { return rows[i]; });
   }
 
-  // 文字列/数値が「正の数」かを判定する検証専用述語（DOM/google 非依存）。カンマや
-  // ¥ などの装飾を除去して解釈し、空・非数値・0・負数は false。約定単価/株数の入力
-  // バリデーションに使う（index.html の numericFieldError）。表示/計算用の寛容な
-  // parseNum とは役割が異なるため別関数として持つ。
-  function isPositiveNumberStr(v) {
+  // 表示文字列（"3,584", "¥1,200", "12.3%"）を number に解釈する。解釈不能は null。
+  // 寛容なパーサ（装飾を全部落として parseFloat）なので、入力検証には使わない。
+  function parseNum(v) {
     var s = String(v == null ? '' : v).replace(/[^0-9.\-]/g, '');
-    if (s === '' || s === '-' || s === '.') return false;
+    if (s === '' || s === '-' || s === '.') return null;
     var n = parseFloat(s);
-    return !isNaN(n) && n > 0;
+    return isNaN(n) ? null : n;
+  }
+
+  // 文字列/数値が「正の数」かを判定する検証専用述語（DOM/google 非依存）。¥/$/カンマ/
+  // 空白のみ除去した上で数値リテラル全体の形（/^\d+(\.\d+)?$/）を要求するため、
+  // "1.2.3" や "1-2" のような壊れた入力は受理しない。約定単価/株数の入力バリデーション
+  // （index.html の numericFieldError）と台帳集計の厳密パースに使う。表示/計算用の
+  // 寛容な parseNum とは役割が異なるため別関数として持つ。
+  function isPositiveNumberStr(v) {
+    var s = String(v == null ? '' : v).replace(/[¥￥$,\s]/g, '');
+    return /^\d+(\.\d+)?$/.test(s) && parseFloat(s) > 0;
+  }
+
+  // 売買履歴タブの getRows 結果（headers: [{label}], rows: [{row, cells}]、cells は
+  // display string）から、Ticker ごとのポジションを移動平均法で導出する。
+  // 返り値: { TICKER: { shares, avgPrice, oversold, invalid, dateFallback } }
+  //   - TICKER は trim + 大文字化で正規化（台帳の Ticker は手入力のため）
+  //   - 処理順は日付昇順・同日は行番号昇順。日付が1件でも解釈できない Ticker は
+  //     行番号順に fallback し dateFallback=true を立てる
+  //   - 約定単価/株数が厳密パース不能、または売買区分が 買い/売り 以外の行は
+  //     計算から除外して invalid をカウントする（誤った数値を出すより警告に倒す）
+  //   - 売りで保有が負になったら oversold=true。その後の買いは平均を取り直す
+  function ledgerPositions(headers, rows) {
+    var li = {};
+    (headers || []).forEach(function (h, i) { li[h.label] = i; });
+    function cell(r, label) {
+      var i = li[label];
+      var v = (i == null || !r.cells) ? '' : r.cells[i];
+      return String(v == null ? '' : v);
+    }
+    function strictNum(s) { return isPositiveNumberStr(s) ? parseNum(s) : null; }
+
+    var groups = {};
+    (rows || []).forEach(function (r) {
+      var t = cell(r, 'Ticker').trim().toUpperCase();
+      if (!t) return;
+      var dRaw = cell(r, '日付').trim();
+      var d = dRaw ? Date.parse(dRaw.replace(/\//g, '-')) : NaN;
+      (groups[t] = groups[t] || []).push({
+        row: r.row,
+        date: isNaN(d) ? null : d,
+        side: cell(r, '売買区分').trim(),
+        price: strictNum(cell(r, '約定単価')),
+        qty: strictNum(cell(r, '株数'))
+      });
+    });
+
+    var out = {};
+    Object.keys(groups).forEach(function (t) {
+      var entries = groups[t];
+      var dateFallback = entries.some(function (e) { return e.date === null; });
+      entries = sortRows(entries, function (e) { return dateFallback ? e.row : e.date; }, 'asc');
+      var shares = 0, avg = null, oversold = false, invalid = 0;
+      entries.forEach(function (e) {
+        if (e.price === null || e.qty === null) { invalid++; return; }
+        if (e.side === '買い') {
+          avg = (shares > 0 && avg !== null)
+            ? (shares * avg + e.qty * e.price) / (shares + e.qty)
+            : e.price;
+          shares = (shares > 0 ? shares : 0) + e.qty;
+        } else if (e.side === '売り') {
+          shares -= e.qty;
+          if (shares < 0) oversold = true;
+        } else {
+          invalid++;
+        }
+      });
+      out[t] = { shares: shares, avgPrice: avg, oversold: oversold, invalid: invalid, dateFallback: dateFallback };
+    });
+    return out;
+  }
+
+  // 台帳から導出したポジションと保有銘柄タブの手入力値（取得株数/取得株価）を照合する。
+  // 返り値: 'match' | 'mismatch' | 'warn'。株数は完全一致、価格は display string の
+  // 丸めを吸収する許容差 max(0.5, |held|*0.1%) 以内で一致とみなす。
+  // 台帳側に売り超過/解析不能行があれば数値比較せず 'warn'（誤マッチを出さない）。
+  function reconcileHolding(pos, heldShares, heldAvg) {
+    if (pos.oversold || pos.invalid > 0) return 'warn';
+    if (heldShares === null || heldShares === undefined ||
+        heldAvg === null || heldAvg === undefined) return 'mismatch';
+    if (pos.shares !== heldShares || pos.avgPrice === null) return 'mismatch';
+    var tol = Math.max(0.5, Math.abs(heldAvg) * 0.001);
+    return Math.abs(pos.avgPrice - heldAvg) <= tol ? 'match' : 'mismatch';
   }
 </script>
