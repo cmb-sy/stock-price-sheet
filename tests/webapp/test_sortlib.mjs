@@ -229,6 +229,8 @@ test('reconcileHolding: exact match and rounding tolerance', () => {
 
 test('reconcileHolding: share or price mismatch', () => {
   assert.equal(reconcileHolding({ shares: 200, avgPrice: 1000, oversold: false, invalid: 0 }, 100, 1000), 'mismatch');
+  // 台帳上は全売却済みなのに保有側に株数が残っている（記入漏れ検出）
+  assert.equal(reconcileHolding({ shares: 0, avgPrice: 1000, oversold: false, invalid: 0 }, 100, 1000), 'mismatch');
   assert.equal(reconcileHolding({ shares: 100, avgPrice: 1100, oversold: false, invalid: 0 }, 100, 1000), 'mismatch');
   assert.equal(reconcileHolding({ shares: 100, avgPrice: 1000, oversold: false, invalid: 0 }, null, null), 'mismatch');
   assert.equal(reconcileHolding({ shares: 100, avgPrice: null, oversold: false, invalid: 0 }, 100, 1000), 'mismatch');

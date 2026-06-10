@@ -682,15 +682,16 @@
 
   // 台帳照合チップ。売買履歴から導出したポジション（state.recon）と保有カードの
   // 手入力値（取得株数/取得株価）を照合する。表示のみで自動反映はしない（設計制約）。
-  // 台帳に該当 Ticker がない、または全売却（ネット0株でクリーン）なら表示しない。
+  // 台帳に該当 Ticker がないなら表示しない。台帳がネット0株（クリーン全売却）でも
+  // 保有側に株数が残っていれば記入漏れの可能性があるため不一致として表示する。
   function reconMetric(byLabel) {
     var raw = byLabel[ROLE.ticker] ? byLabel[ROLE.ticker].val : '';
     var t = String(raw == null ? '' : raw).trim().toUpperCase();
     if (!t || !state.recon[t]) return null;
     var pos = state.recon[t];
-    if (!pos.oversold && pos.invalid === 0 && pos.shares === 0) return null;
     var heldSh = byLabel[DERIVE.shares] ? parseNum(byLabel[DERIVE.shares].val) : null;
     var heldAvg = byLabel[DERIVE.acquire] ? parseNum(byLabel[DERIVE.acquire].val) : null;
+    if (!pos.oversold && pos.invalid === 0 && pos.shares === 0 && !heldSh) return null;
     var st = reconcileHolding(pos, heldSh, heldAvg);
     if (st === 'match') return { k: '台帳照合', html: '✓ 一致', cls: 'pos' };
     if (st === 'warn') {
