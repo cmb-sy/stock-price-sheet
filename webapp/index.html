@@ -270,6 +270,21 @@
       transition: .25s; z-index: 40; }
     .toast.show { opacity: 1; transform: translate(-50%, 0); }
     .toast::before { content: "✓ "; color: #34d399; }
+
+    /* ---- responsive grid (PC/tablet) ----
+       Below 900px keep the single-column mobile layout. From 900px up, lay the
+       cards out as a multi-column grid driven by `auto-fill, minmax(340px, 1fr)`
+       (so cards stay readable; 2 columns at ~900px, 3 around 1280px). The
+       portfolio summary and glossary chrome span the full row. */
+    @media (min-width: 900px) {
+      main { max-width: 1280px;
+        display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+        column-gap: 16px; align-items: start; }
+      .portfolio, .empty, .gloss-search, .gloss-intro, .gloss-chips,
+      #glossBody { grid-column: 1 / -1; }
+      .card, .skel { margin: 0 0 16px; }
+    }
+    @media (min-width: 1400px) { main { max-width: 1480px; } }
   </style>
 </head>
 <body>
