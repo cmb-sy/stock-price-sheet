@@ -38,17 +38,51 @@ Japanese. The tab name `保有銘柄` below is a sheet identifier, kept as-is.)
 ## Per-institution target prices (機関別目標株価)
 
 Per-institution targets are **not available from any API**; they come only from
-public rating coverage — みんかぶ, かぶたん, トレーダーズウェブ and similar public
-sources. Rules:
+public rating coverage. Generic web searches mostly surface consensus numbers and
+miss the per-institution tables, so follow this procedure — do not stop at `なし`
+until the primary source below has actually been checked.
+
+**JP stocks — primary source (check FIRST, usually sufficient):**
+
+1. Fetch `https://www.kabuka.jp.net/rating/<4桁コード>.html` (code without `.T`,
+   e.g. `7203`). It is a per-stock history table: 発表日 / 証券会社 /
+   レーティング / 目標株価（変更前 → 変更後）. Use the **post-change** (right
+   side) figure of the latest entry per institution within the last year.
+2. Institution-name mapping (the site abbreviates):
+   野村 → `target_nomura` · 大和 → `target_daiwa` · SMBC日興/日興 →
+   `target_smbc_nikko` · みずほ → `target_mizuho` · 三菱UFJMS/三菱UFJ
+   モルガン・スタンレー → `target_mumss` · GS/ゴールドマン → `target_gs` ·
+   モルガンS/モルガン・スタンレー(MUFG) → `target_ms` · JPM/JPモルガン →
+   `target_jpm`. Caution: 三菱UFJMS (`target_mumss`) and モルガンS (`target_ms`)
+   are **different entities** — never merge them.
+3. Fallback / cross-check only if step 1 has no table for the stock:
+   トレーダーズウェブ 注目レーティング (traders.co.jp), みんかぶ, かぶたん
+   ニュース, or WebSearch `「<銘柄名 or コード> 目標株価 <機関名>」`.
+
+**US stocks — primary source:**
+
+1. Fetch `https://www.marketbeat.com/stocks/<EXCHANGE>/<TICKER>/price-target/`
+   (e.g. `NASDAQ/AAPL`; `/forecast/` also works). Table columns: Report Date /
+   Brokerage / Rating / Price Target.
+2. Of our 8 institutions only Goldman Sachs (`target_gs`), Morgan Stanley
+   (`target_ms`) and JPMorgan Chase & Co. (`target_jpm`) typically appear; the
+   5 Japanese brokers rarely publish US coverage, so `なし` is normally correct
+   for those — but GS/MS/JPM `なし` on a large-cap is suspicious: re-check via
+   WebSearch `"<TICKER> price target Goldman Sachs"` (or benzinga.com) before
+   writing it.
+
+**Rules (unchanged):**
 
 - **Freshness**: adopt a rating only if it was published **within the last year**.
   If an institution has multiple ratings inside that window, use the **latest**.
 - **Cell format**: target price + announcement month, e.g. `¥2,400 (2026/5)` for
   JP stocks, `$150 (2026/5)` for US stocks.
-- **No qualifying rating** (none found, or only older than a year): write `なし`
-  (one word; never a sentence, never a fabricated number, never leave it empty).
+- **No qualifying rating** (none found after the procedure above, or only older
+  than a year): write `なし` (one word; never a sentence, never a fabricated
+  number, never leave it empty).
 - The no-fabrication rule applies in full: if you cannot confirm an institution's
-  target from a public source, it is `なし` — do not infer one from a consensus.
+  target from a public source, it is `なし` — do not infer one from a consensus
+  (consensus/平均 figures are never an institution's number).
 
 ## What the comment must be
 
