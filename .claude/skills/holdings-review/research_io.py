@@ -7,9 +7,12 @@ Subcommands:
               tab, with the owner's inputs (想定保有期間, 目標売却株価, 購入理由), the
               Track A figures (現在株価, 配当利回り, 配当金), and the current
               AIコメント, so the skill can decide what to (re)write.
-  write       Read {"writes": [{"row","value"}, ...]} from stdin and batch-write
-              each value into the AIコメント column (USER_ENTERED). Only that
-              column is writable; nothing else is touched.
+  write       Read {"writes": [{"row","fields":{role:value,...}}, ...]} from stdin
+              and batch-write (USER_ENTERED). Only the Track B roles below are
+              writable; any other role is refused.
+
+Track B roles this skill may write:
+  ai_comment (AIコメント) · target_* (機関別目標株価 8列)
 
 This output is consumed by Claude locally during a manual run. It is never
 committed and must not be piped into the repo or into Actions logs.
@@ -36,6 +39,17 @@ from sheet import (  # noqa: E402
     resolve_columns,
 )
 
+# Per-institution analyst target-price roles (Track B web research, 8 columns).
+TARGET_ROLES = (
+    "target_nomura",
+    "target_daiwa",
+    "target_smbc_nikko",
+    "target_mizuho",
+    "target_mumss",
+    "target_gs",
+    "target_ms",
+    "target_jpm",
+)
 # Roles surfaced to the skill for each holding (read-only context for the comment).
 READ_ROLES = (
     "name",
@@ -46,9 +60,9 @@ READ_ROLES = (
     "dividend_amount",
     "purchase_reason",
     "ai_comment",
-)
-# The only column this skill may write.
-WRITE_ROLE = "ai_comment"
+) + TARGET_ROLES
+# The only roles this skill may write.
+WRITE_ROLES = ("ai_comment",) + TARGET_ROLES
 
 
 def _holdings_tab(cfg: dict) -> dict:
@@ -90,18 +104,21 @@ def write(cfg: dict, ss) -> None:
     tab = _holdings_tab(cfg)
     ws = ss.worksheet(tab["tab"])
     header = ws.row_values(int(cfg["header_rows"]))
-    cols = resolve_columns(header, tab["columns"], required={"ticker", WRITE_ROLE})
-    col_letter = index_to_col(cols[WRITE_ROLE])
+    cols = resolve_columns(header, tab["columns"], required={"ticker"})
     updates = []
     for w in writes:
-        if "col" in w and str(w["col"]).strip() not in ("", WRITE_ROLE, col_letter):
-            sys.exit(f"refusing to write anything but the AIコメント column: {w['col']}")
-        updates.append(
-            {"range": f"{col_letter}{int(w['row'])}", "values": [[w["value"]]]}
-        )
+        row_num = int(w["row"])
+        for role, val in (w.get("fields") or {}).items():
+            if role not in WRITE_ROLES:
+                sys.exit(f"refusing to write a non-Track-B role: {role!r}")
+            if role not in cols:
+                sys.exit(f"role {role!r} has no column in tab {tab['tab']!r}")
+            updates.append(
+                {"range": f"{index_to_col(cols[role])}{row_num}", "values": [[val]]}
+            )
     if updates:
         ws.batch_update(updates, value_input_option="USER_ENTERED")
-    print(f"wrote {len(updates)} comment(s)")
+    print(f"wrote {len(updates)} value(s)")
 
 
 def main() -> int:

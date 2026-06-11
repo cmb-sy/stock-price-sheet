@@ -1,6 +1,6 @@
 ---
 name: holdings-review
-description: For each holding in the 保有銘柄 tab, deep-research the market environment and the stock from many angles over repeated loops, weigh it against the owner's own purchase reason / horizon / target sell price, and write a personalized advisory comment addressed to the owner into the AIコメント column. Manual, owner-only run.
+description: For each holding in the 保有銘柄 tab, deep-research the market environment and the stock from many angles over repeated loops, weigh it against the owner's own purchase reason / horizon / target sell price, and write a personalized advisory comment addressed to the owner into the AIコメント column plus per-institution analyst target prices into the 目標株価（…） columns. Manual, owner-only run.
 argument-hint: "(no args; processes every row in 保有銘柄 that has a ticker)"
 ---
 
@@ -8,7 +8,8 @@ For each holding, write the owner a candid, personalized comment: given **why th
 bought it (購入理由)**, **their horizon (想定保有期間)**, and **their target sell price
 (目標売却株価)**, is the original thesis still intact, and what should they watch or
 do now? This is a **manually launched, owner-only skill**. It writes **only** the
-`AIコメント` column; it never touches the manual columns or Track A's columns.
+`AIコメント` column and the eight per-institution `目標株価（…）` columns; it never
+touches the manual columns or Track A's columns.
 
 (Repo files are in English; the sheet — tab names, headers, data — stays in
 Japanese. The tab name `保有銘柄` below is a sheet identifier, kept as-is.)
@@ -25,8 +26,29 @@ Japanese. The tab name `保有銘柄` below is a sheet identifier, kept as-is.)
   - Track A figures: `current_price` 現在株価, `dividend_yield` 配当利回り,
     `dividend_amount` 配当金.
   - `ai_comment` AIコメント — the existing comment (if any) to update.
-- **Only `AIコメント` may be written** (`research_io.py write` refuses any other
-  column). 売買履歴 is **not** consulted by this skill.
+  - The existing per-institution targets (to update): `target_nomura` 目標株価（野村） ·
+    `target_daiwa` 目標株価（大和） · `target_smbc_nikko` 目標株価（SMBC日興） ·
+    `target_mizuho` 目標株価（みずほ） · `target_mumss` 目標株価（三菱UFJMS） ·
+    `target_gs` 目標株価（GS） · `target_ms` 目標株価（モルガンS） ·
+    `target_jpm` 目標株価（JPM）.
+- **Only `ai_comment` and the eight `target_*` roles may be written**
+  (`research_io.py write` refuses any other role). 売買履歴 is **not** consulted by
+  this skill.
+
+## Per-institution target prices (機関別目標株価)
+
+Per-institution targets are **not available from any API**; they come only from
+public rating coverage — みんかぶ, かぶたん, トレーダーズウェブ and similar public
+sources. Rules:
+
+- **Freshness**: adopt a rating only if it was published **within the last year**.
+  If an institution has multiple ratings inside that window, use the **latest**.
+- **Cell format**: target price + announcement month, e.g. `¥2,400 (2026/5)` for
+  JP stocks, `$150 (2026/5)` for US stocks.
+- **No qualifying rating** (none found, or only older than a year): write `なし`
+  (one word; never a sentence, never a fabricated number, never leave it empty).
+- The no-fabrication rule applies in full: if you cannot confirm an institution's
+  target from a public source, it is `なし` — do not infer one from a consensus.
 
 ## What the comment must be
 
@@ -109,13 +131,15 @@ picture is stable. Then judge it **through the lens of the owner's thesis and ho
 
 ### 3. Write
 
-Pass results as JSON via stdin, using the `row` from step 1. Only `value` (the comment
-text) is needed; the column is always `AIコメント`.
+Pass results as JSON via stdin, using the `row` from step 1. Each write carries a
+`fields` object of role→value (only `ai_comment` and `target_*` are accepted).
 
 ```bash
 echo '{"writes":[
-  {"row":2,"value":"<personalized comment to the owner, incl. research date>"},
-  {"row":3,"value":"<...>"}
+  {"row":2,"fields":{
+     "ai_comment":"<personalized comment to the owner, incl. research date>",
+     "target_nomura":"¥3,400 (2026/4)","target_gs":"なし"}},
+  {"row":3,"fields":{"ai_comment":"<...>"}}
 ]}' | .venv/bin/python .claude/skills/holdings-review/research_io.py write
 ```
 
@@ -126,8 +150,11 @@ could not be confirmed and was therefore hedged in the comment, state that.
 
 ## What not to do
 
-- Writing to any column other than `AIコメント` (`research_io.py write` refuses it).
+- Writing to any column other than `AIコメント` and the eight `目標株価（…）` columns
+  (`research_io.py write` refuses it).
 - One-shotting the research, or restating figures instead of forming a judgment.
 - Ignoring the owner's 購入理由 / 想定保有期間 / 目標売却株価 — the comment must be about
   *their* position, not a generic take.
 - Fabricating a value or event you could not confirm.
+- Filling a `target_*` cell with a rating older than one year, a consensus-derived
+  guess, or a sentence — the only valid values are `¥/$ price (YYYY/M)` or `なし`.

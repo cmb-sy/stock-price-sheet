@@ -17,7 +17,7 @@ Subcommands:
 Track B roles this skill may write:
   theme (業界やテーマ) · industry_per (業界PER) · industry_pbr (業界PBR) ·
   analyst_target (アナリスト予想株価) · theoretical (理論株価) ·
-  analysis_comment (AI分析コメント)
+  analysis_comment (AI分析コメント) · target_* (機関別目標株価 8列)
 
 This output is consumed by Claude locally during a manual run. It is never
 committed and must not be piped into the repo or into Actions logs.
@@ -45,6 +45,17 @@ from sheet import (  # noqa: E402
     watchlist_tabs,
 )
 
+# Per-institution analyst target-price roles (Track B web research, 8 columns).
+TARGET_ROLES = (
+    "target_nomura",
+    "target_daiwa",
+    "target_smbc_nikko",
+    "target_mizuho",
+    "target_mumss",
+    "target_gs",
+    "target_ms",
+    "target_jpm",
+)
 # Roles surfaced to the skill for each watched stock (read-only synthesis context).
 READ_ROLES = (
     "name",
@@ -65,7 +76,7 @@ READ_ROLES = (
     "theoretical",
     "next_earnings",
     "analysis_comment",
-)
+) + TARGET_ROLES
 # The only roles this skill may write.
 WRITE_ROLES = (
     "theme",
@@ -74,7 +85,7 @@ WRITE_ROLES = (
     "analyst_target",
     "theoretical",
     "analysis_comment",
-)
+) + TARGET_ROLES
 
 
 def read_rows(cfg: dict, ss) -> None:

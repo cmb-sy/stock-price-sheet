@@ -1,6 +1,6 @@
 ---
 name: stock-research
-description: For each watched stock in the 監視-* tabs, deep-research the market environment and the stock from many angles over repeated loops, then write the values yfinance cannot give (the industry/theme, industry-average PER/PBR, an analyst-consensus target price, a theoretical price) and a Claude-synthesized per-stock verdict into the watchlist's Track B columns. Manual, owner-only run.
+description: For each watched stock in the 監視-* tabs, deep-research the market environment and the stock from many angles over repeated loops, then write the values yfinance cannot give (the industry/theme, industry-average PER/PBR, an analyst-consensus target price, a theoretical price, per-institution analyst target prices) and a Claude-synthesized per-stock verdict into the watchlist's Track B columns. Manual, owner-only run.
 argument-hint: "(no args; processes every row that has a ticker in every watchlist tab)"
 ---
 
@@ -30,14 +30,35 @@ Japanese. Tab names like `監視-JP` / `監視-US` are sheet identifiers, kept a
     `eps_yoy_latest` 年間EPS前年比（%）, `rating` レーティング,
     `next_earnings` 次回決算日.
   - The existing Track B values (to update): `theme`, `industry_per`,
-    `industry_pbr`, `analyst_target`, `theoretical`, `analysis_comment`.
-- **Only these six roles may be written** (`research_io.py write` refuses any other):
+    `industry_pbr`, `analyst_target`, `theoretical`, `analysis_comment`, and the
+    eight `target_*` per-institution target prices.
+- **Only these Track B roles may be written** (`research_io.py write` refuses any other):
   - `theme` 業界やテーマ — the industry/theme the stock belongs to (short label).
   - `industry_per` 業界PER — industry-average PER (single number).
   - `industry_pbr` 業界PBR — industry-average PBR (single number).
   - `analyst_target` アナリスト予想株価 — analyst-consensus target price (single number).
   - `theoretical` 理論株価 — a theoretical fair price (single number).
   - `analysis_comment` AI分析コメント — Claude's synthesized per-stock verdict.
+  - `target_nomura` 目標株価（野村） · `target_daiwa` 目標株価（大和） ·
+    `target_smbc_nikko` 目標株価（SMBC日興） · `target_mizuho` 目標株価（みずほ） ·
+    `target_mumss` 目標株価（三菱UFJMS） · `target_gs` 目標株価（GS） ·
+    `target_ms` 目標株価（モルガンS） · `target_jpm` 目標株価（JPM） —
+    per-institution analyst target prices (see the rules below).
+
+## Per-institution target prices (機関別目標株価)
+
+Per-institution targets are **not available from any API**; they come only from
+public rating coverage — みんかぶ, かぶたん, トレーダーズウェブ and similar public
+sources. Rules:
+
+- **Freshness**: adopt a rating only if it was published **within the last year**.
+  If an institution has multiple ratings inside that window, use the **latest**.
+- **Cell format**: target price + announcement month, e.g. `¥2,400 (2026/5)` for
+  JP stocks, `$150 (2026/5)` for US stocks.
+- **No qualifying rating** (none found, or only older than a year): write `なし`
+  (one word; never a sentence, never a fabricated number, never leave it empty).
+- The no-fabrication rule applies in full: if you cannot confirm an institution's
+  target from a public source, it is `なし` — do not infer one from a consensus.
 
 ## What the analysis comment must be
 
@@ -129,6 +150,7 @@ echo '{"writes":[
   {"tab":"監視-JP","row":2,"fields":{
      "theme":"<industry/theme>","industry_per":15.2,"industry_pbr":1.1,
      "analyst_target":3200,"theoretical":3500,
+     "target_nomura":"¥3,400 (2026/4)","target_gs":"なし",
      "analysis_comment":"<verdict + reasoning + research date>"}}
 ]}' | .venv/bin/python .claude/skills/stock-research/research_io.py write
 ```
@@ -141,7 +163,9 @@ number, state that.
 
 ## What not to do
 
-- Writing any role other than the six Track B roles (`research_io.py write` refuses it).
+- Writing any role other than the allowed Track B roles (`research_io.py write` refuses it).
 - One-shotting the research, or restating figures instead of forming a judgment.
 - Fabricating a theme, industry PER/PBR, target, theoretical price, or event you
   could not confirm — write a minimal reason word in that cell instead.
+- Filling a `target_*` cell with a rating older than one year, a consensus-derived
+  guess, or a sentence — the only valid values are `¥/$ price (YYYY/M)` or `なし`.
