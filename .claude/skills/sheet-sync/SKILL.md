@@ -62,7 +62,15 @@ worksheet's `header` array.
 | `dividend_amount`     | 配当金               | Track A: dividendRate × 取得株数              |
 | `shareholder_benefit` | 株主優待             | manual; not available from yfinance           |
 | `purchase_reason`     | 購入理由             | manual; holdings-review input                 |
-| `ai_comment`          | AIコメント           | holdings-review writes this (only)            |
+| `ai_comment`          | AIコメント           | holdings-review writes this                   |
+| `target_nomura`       | 目標株価（野村）     | Track B (holdings-review)                     |
+| `target_daiwa`        | 目標株価（大和）     | Track B (holdings-review)                     |
+| `target_smbc_nikko`   | 目標株価（SMBC日興） | Track B (holdings-review)                     |
+| `target_mizuho`       | 目標株価（みずほ）   | Track B (holdings-review)                     |
+| `target_mumss`        | 目標株価（三菱UFJMS）| Track B (holdings-review)                     |
+| `target_gs`           | 目標株価（GS）       | Track B (holdings-review)                     |
+| `target_ms`           | 目標株価（モルガンS）| Track B (holdings-review)                     |
+| `target_jpm`          | 目標株価（JPM）      | Track B (holdings-review)                     |
 
 **watchlist tab roles** (e.g. `監視-JP`, `監視-US`):
 
@@ -90,6 +98,14 @@ worksheet's `header` array.
 | `analysis_comment`| AI分析コメント     | Track B (stock-research) writes this  |
 | `ticker`          | Ticker             | manual; required                      |
 | `updated`         | 更新時刻           | Track A: write timestamp              |
+| `target_nomura`   | 目標株価（野村）   | Track B (stock-research)              |
+| `target_daiwa`    | 目標株価（大和）   | Track B (stock-research)              |
+| `target_smbc_nikko` | 目標株価（SMBC日興） | Track B (stock-research)          |
+| `target_mizuho`   | 目標株価（みずほ） | Track B (stock-research)              |
+| `target_mumss`    | 目標株価（三菱UFJMS） | Track B (stock-research)           |
+| `target_gs`       | 目標株価（GS）     | Track B (stock-research)              |
+| `target_ms`       | 目標株価（モルガンS） | Track B (stock-research)           |
+| `target_jpm`      | 目標株価（JPM）    | Track B (stock-research)              |
 
 A header in the sheet not in the relevant table is **unknown**: do not guess its
 owner — list it in the report and ask the user how it should be filled.

@@ -108,7 +108,12 @@ def write(cfg: dict, ss) -> None:
     updates = []
     for w in writes:
         row_num = int(w["row"])
-        for role, val in (w.get("fields") or {}).items():
+        if "value" in w or "col" in w or not isinstance(w.get("fields"), dict):
+            sys.exit(
+                'each write must be {"row", "fields": {role: value}}; '
+                'the legacy {"row", "value"} form is not accepted'
+            )
+        for role, val in w["fields"].items():
             if role not in WRITE_ROLES:
                 sys.exit(f"refusing to write a non-Track-B role: {role!r}")
             if role not in cols:
