@@ -364,7 +364,7 @@
     '銘柄名': '正式名称', 'Ticker': 'yfinance 形式（例 7203.T, AAPL）',
     '購入検討株価': '狙う購入価格', '購入検討理由': '検討の根拠をメモ',
     '目標売却株価': '売却の目標価格', '取得株価': '購入時の株価', '取得株数': '保有株数',
-    '想定保有期間': '短期 / 中期 / 長期 など', '株主優待': '優待の内容',
+    '株主優待': '優待の内容',
     '購入理由': '購入の根拠をメモ',
     'ナンピン検討株価': '買い増しを検討する株価', 'ナンピン検討株数': '買い増しを検討する株数',
     '日付': '取引日（例 2026-06-08）', '売買区分': '買い / 売り',
@@ -1004,6 +1004,7 @@
         var body = $(b.getAttribute('data-t'));
         var open = body.classList.toggle('clamp') === false;
         b.textContent = open ? '閉じる' : 'もっと見る';
+        equalizeCardSections();
       };
     });
     [].forEach.call(document.querySelectorAll('.copy'), function (b) {
@@ -1020,7 +1021,40 @@
         };
       });
     }
+    equalizeCardSections();
   }
+
+  // グリッド表示では行内のカード高さは揃う（align-items: stretch）が、指標数や
+  // 理由文の長さが違うと内部の境界（.notes の点線・フッター）がずれる。行ごとに
+  // .grid / .notes / .theme の min-height を行内最大値に合わせて境界線を揃える。
+  function equalizeCardSections() {
+    var sections = ['.theme', '.grid', '.notes'];
+    [].forEach.call(
+      document.querySelectorAll('.card .theme, .card .grid, .card .notes'),
+      function (el) { el.style.minHeight = ''; });
+    if (state.detailRow || window.innerWidth < 900) return;
+    var rows = {};
+    [].forEach.call(document.querySelectorAll('.card'), function (c) {
+      var top = Math.round(c.getBoundingClientRect().top);
+      (rows[top] = rows[top] || []).push(c);
+    });
+    Object.keys(rows).forEach(function (k) {
+      var group = rows[k];
+      if (group.length < 2) return;
+      sections.forEach(function (sel) {
+        var els = group.map(function (c) { return c.querySelector(sel); });
+        if (els.some(function (e) { return !e; })) return;
+        var max = Math.max.apply(null, els.map(function (e) { return e.offsetHeight; }));
+        els.forEach(function (e) { e.style.minHeight = max + 'px'; });
+      });
+    });
+  }
+
+  var eqTimer = null;
+  window.addEventListener('resize', function () {
+    clearTimeout(eqTimer);
+    eqTimer = setTimeout(equalizeCardSections, 150);
+  });
 
   // ---- editor ----
   function refreshProgress() {

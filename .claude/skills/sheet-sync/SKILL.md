@@ -53,7 +53,6 @@ worksheet's `header` array.
 | `ticker`              | Ticker               | manual; rows without it are skipped (required)|
 | `name`                | 銘柄名               | manual                                        |
 | `ytd_low_gap_pct`     | 年初来安値との乖離率 | Track A (derived): (現在株価 − YTD low)/YTD low×100 |
-| `horizon`             | 想定保有期間         | manual; holdings-review input                 |
 | `target_sell`         | 目標売却株価         | manual; holdings-review input                 |
 | `current_price`       | 現在株価             | Track A: currentPrice                         |
 | `acquire_price`       | 取得株価             | manual; read by Track B, never written        |
@@ -74,7 +73,6 @@ worksheet's `header` array.
 | `nampin_price`        | ナンピン検討株価     | manual; holdings-review input                 |
 | `nampin_shares`       | ナンピン検討株数     | manual; holdings-review input                 |
 | `ai_nampin_price`     | AIのおすすめナンピン株価 | Track B (holdings-review)                 |
-| `ai_nampin_shares`    | AIのおすすめナンピン株数 | Track B (holdings-review)                 |
 
 **watchlist tab roles** (e.g. `監視-JP`, `監視-US`):
 

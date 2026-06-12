@@ -26,7 +26,7 @@ Each tab has three update routes.
 | Route | Owner | Columns written |
 |-------|-------|-----------------|
 | **Track A** (auto) | `update_prices.py` (GitHub Actions / yfinance, no AI) | price, dividend, PER/PBR, market cap, EPS, rating, next earnings date, YTD-low gap, kabutan URL, timestamp, etc. |
-| **Track B** (manual) | Claude skills (`holdings-review` / `stock-research`) | `AIコメント`・`AIのおすすめナンピン株価`/`株数` (holdings) / `業界やテーマ`・`業界PER`・`業界PBR`・`アナリスト予想株価`・`理論株価`・`AI分析コメント`・`AI予想押し目` (watchlists) / 機関別`目標株価（…）`×8 (all tabs) |
+| **Track B** (manual) | Claude skills (`holdings-review` / `stock-research`) | `AIコメント`・`AIのおすすめナンピン株価` (holdings) / `業界やテーマ`・`業界PER`・`業界PBR`・`アナリスト予想株価`・`理論株価`・`AI分析コメント`・`AI予想押し目` (watchlists) / 機関別`目標株価（…）`×8 (all tabs) |
 | **webapp** (manual) | Apps Script web app (`webapp/`) | **manual columns only** (Track A / Track B columns are read-only) |
 
 Columns are mapped **by header name, not by position** (see each tab's `columns` map in
@@ -81,12 +81,12 @@ never overwritten by any code path.
 
 | Header | Owner | Meaning |
 |--------|-------|---------|
-| 銘柄名 / 想定保有期間 / 目標売却株価 / 取得株価 / 取得株数 / 株主優待 / 購入理由 / Ticker / ナンピン検討株価 / ナンピン検討株数 | manual | name, holding horizon, target sell price, cost basis, shares, shareholder benefit, purchase reason, ticker, averaging-down price/shares under consideration |
+| 銘柄名 / 目標売却株価 / 取得株価 / 取得株数 / 株主優待 / 購入理由 / Ticker / ナンピン検討株価 / ナンピン検討株数 | manual | name, target sell price, cost basis, shares, shareholder benefit, purchase reason, ticker, averaging-down price/shares under consideration |
 | 現在株価 / 配当利回り / 配当金 | **Track A** | yfinance (配当金 = per-share dividend × 取得株数) |
 | 年初来安値との乖離率 | **Track A** (derived) | (現在株価 − YTD low) / YTD low × 100 (gap above the year-to-date low) |
-| AIコメント | **Track B** (holdings-review) | individualized advice using 購入理由 / 想定保有期間 / 目標売却株価 and the Track A figures (target 500–900 chars, structured paragraphs) |
+| AIコメント | **Track B** (holdings-review) | individualized advice using 購入理由 / 目標売却株価 and the Track A figures (target 500–900 chars, structured paragraphs) |
 | 目標株価（野村/大和/SMBC日興/みずほ/三菱UFJMS/GS/モルガンS/JPM） | **Track B** (holdings-review) | per-institution analyst targets from public rating coverage, ≤1 year old: `¥2,400 (2026/5)` or `なし` |
-| AIのおすすめナンピン株価 / AIのおすすめナンピン株数 | **Track B** (holdings-review) | AI-recommended averaging-down entry (price only, below cost basis) and share count (based on held shares; JP lots of 100), or `なし` |
+| AIのおすすめナンピン株価 | **Track B** (holdings-review) | AI-recommended averaging-down entry price (price only, below cost basis) or `なし` |
 
 ### watchlist tabs (`監視-JP` / `監視-US`)
 
@@ -270,7 +270,7 @@ need. The research skills reference the latest primary sources in a loop and **n
 fabricate numbers**.
 
 - **`.claude/skills/holdings-review/`** — for the holdings tab. For each held stock, it
-  writes individualized advice to `AIコメント` using your `購入理由` / `想定保有期間` /
+  writes individualized advice to `AIコメント` using your `購入理由` /
   `目標売却株価` and the Track A figures, plus the eight per-institution
   `目標株価（…）` columns (public rating coverage, ≤1 year old, `なし` when absent).
 - **`.claude/skills/stock-research/`** — for the watchlist tabs. It researches values

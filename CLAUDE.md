@@ -67,7 +67,6 @@ Track A aborts on a missing `ticker`, and the `sheet-sync` skill reconciles labe
 | Ticker               | manual              | yfinance format; rows without it are skipped                |
 | 銘柄名               | manual              | stock name (Japanese)                                       |
 | 年初来安値との乖離率 | **Track A** (derived) | (現在株価 − 年初来安値) / 年初来安値 × 100 (gap above the YTD low) |
-| 想定保有期間         | manual              | holding horizon — holdings-review input                     |
 | 目標売却株価         | manual              | target sell price — holdings-review input                   |
 | 現在株価             | **Track A**         | yfinance `currentPrice`                                     |
 | 取得株価             | manual              | acquisition cost basis (read by Track B; never written)     |
@@ -81,12 +80,11 @@ Track A aborts on a missing `ticker`, and the `sheet-sync` skill reconciles labe
 | ナンピン検討株価     | manual              | averaging-down price the owner is considering — holdings-review input |
 | ナンピン検討株数     | manual              | averaging-down share count the owner is considering — holdings-review input |
 | AIのおすすめナンピン株価 | **holdings-review** | AI-recommended averaging-down price (price only, below 取得株価) or `なし` |
-| AIのおすすめナンピン株数 | **holdings-review** | AI-recommended averaging-down share count (count only, based on held 取得株数) or `なし` |
 
 Track A writes `現在株価` / `配当利回り` / `配当金` plus the derived
 `年初来安値との乖離率` here (any of these whose header is absent in the sheet is
 silently skipped). Track B = the **holdings-review** skill writes `AIコメント`,
-the eight `目標株価（…）` columns and the two `AIのおすすめナンピン` columns.
+the eight `目標株価（…）` columns and `AIのおすすめナンピン株価`.
 
 ### watchlist tabs (監視-JP / 監視-US)
 
@@ -128,7 +126,7 @@ the 購入検討株価 is a reasonable entry price.
 
 Two manual, owner-only skills do the web research Track A cannot:
 **holdings-review** (holdings tab → `AIコメント` + 機関別目標株価 ×8 +
-`AIのおすすめナンピン株価`/`株数`) and
+`AIのおすすめナンピン株価`) and
 **stock-research** (watchlist tabs → 業界やテーマ/業界PER/業界PBR/アナリスト予想株価/
 理論株価/AI分析コメント + 機関別目標株価 ×8). Both follow:
 
@@ -153,7 +151,7 @@ Two manual, owner-only skills do the web research Track A cannot:
   stance. Write a **substantial, structured** comment (目安 500〜900 字, short
   paragraphs: 結論／根拠／リスク・注目点／まとめ) — long enough to genuinely advise,
   but **never pad with fabrication**. holdings-review engages the owner's 購入理由 /
-  想定保有期間 / 目標売却株価; stock-research weighs the watch candidate against the
+  目標売却株価; stock-research weighs the watch candidate against the
   owner's 購入検討株価. There is **no fetch-date column** — record the research date
   inside the comment text.
 - The skills' output is handled only transiently in the local Claude session. Never

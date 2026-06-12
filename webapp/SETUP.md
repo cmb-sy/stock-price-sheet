@@ -83,5 +83,5 @@ clasp deploy --description "vN"     # or redeploy the existing deployment in the
 - Numeric manual fields (購入検討株価/目標売却株価/取得株価/取得株数) are stored as
   numbers so the sheet's number format applies; names/reasons/tickers stay text.
 - The editable manual columns per tab are defined by `MANUAL_HEADERS` in `Code.gs`
-  (holdings: 銘柄名/想定保有期間/目標売却株価/取得株価/取得株数/株主優待/購入理由/Ticker;
+  (holdings: 銘柄名/目標売却株価/取得株価/取得株数/株主優待/購入理由/Ticker;
   watchlist: 銘柄名/購入検討株価/購入検討理由/Ticker). Everything else is read-only.

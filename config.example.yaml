@@ -67,7 +67,6 @@ tabs:
       ticker: "Ticker"             # M  rows without a ticker are skipped
       name: "銘柄名"               # M  never written by either track
       ytd_low_gap_pct: "年初来安値との乖離率" # A  (現在株価 - 年初来安値)/年初来安値*100
-      horizon: "想定保有期間"      # M  holdings-review input
       target_sell: "目標売却株価"  # M  holdings-review input
       current_price: "現在株価"    # A  yfinance currentPrice
       acquire_price: "取得株価"    # M  manual cost basis (read by Track B, never written)
@@ -88,7 +87,6 @@ tabs:
       nampin_price: "ナンピン検討株価"         # M  owner's averaging-down price under consideration
       nampin_shares: "ナンピン検討株数"        # M  owner's averaging-down share count under consideration
       ai_nampin_price: "AIのおすすめナンピン株価" # B  AI-recommended averaging-down price (price only; basis in AIコメント)
-      ai_nampin_shares: "AIのおすすめナンピン株数" # B  AI-recommended averaging-down share count (count only; based on held shares)
 
   - tab: "監視-JP"
     type: watchlist

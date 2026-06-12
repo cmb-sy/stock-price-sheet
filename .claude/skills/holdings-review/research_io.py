@@ -4,7 +4,7 @@
 
 Subcommands:
   read-rows   Print JSON of every holding (a row with a ticker) in the 保有銘柄
-              tab, with the owner's inputs (想定保有期間, 目標売却株価, 購入理由), the
+              tab, with the owner's inputs (目標売却株価, 購入理由), the
               Track A figures (現在株価, 配当利回り, 配当金), and the current
               AIコメント, so the skill can decide what to (re)write.
   write       Read {"writes": [{"row","fields":{role:value,...}}, ...]} from stdin
@@ -13,7 +13,7 @@ Subcommands:
 
 Track B roles this skill may write:
   ai_comment (AIコメント) · target_* (機関別目標株価 8列) ·
-  ai_nampin_price (AIのおすすめナンピン株価) · ai_nampin_shares (AIのおすすめナンピン株数)
+  ai_nampin_price (AIのおすすめナンピン株価)
 
 This output is consumed by Claude locally during a manual run. It is never
 committed and must not be piped into the repo or into Actions logs.
@@ -54,7 +54,6 @@ TARGET_ROLES = (
 # Roles surfaced to the skill for each holding (read-only context for the comment).
 READ_ROLES = (
     "name",
-    "horizon",
     "target_sell",
     "current_price",
     "acquire_price",
@@ -66,10 +65,9 @@ READ_ROLES = (
     "nampin_price",
     "nampin_shares",
     "ai_nampin_price",
-    "ai_nampin_shares",
 ) + TARGET_ROLES
 # The only roles this skill may write.
-WRITE_ROLES = ("ai_comment", "ai_nampin_price", "ai_nampin_shares") + TARGET_ROLES
+WRITE_ROLES = ("ai_comment", "ai_nampin_price") + TARGET_ROLES
 
 
 def _holdings_tab(cfg: dict) -> dict:
