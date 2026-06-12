@@ -33,9 +33,9 @@ var LABEL_NAME = '銘柄名';
 // Manual columns the UI may edit, per tab. Everything else is read-only. Mirrors
 // the manual roles in config.yaml / CLAUDE.md; labels are generic, no tickers/PII.
 var MANUAL_HEADERS = {
-  '保有銘柄': ['銘柄名', '目標売却株価', '取得株価', '取得株数', '株主優待', '購入理由', 'Ticker', 'ナンピン検討株価', 'ナンピン検討株数'],
-  '監視-JP': ['銘柄名', '購入検討株価', '購入検討理由', 'Ticker'],
-  '監視-US': ['銘柄名', '購入検討株価', '購入検討理由', 'Ticker'],
+  '保有銘柄': ['銘柄名', '目標売却株価', '取得株価', '取得株数', '株主優待', '購入理由', 'Ticker', 'ナンピン検討株価', 'ナンピン検討株数', 'カテゴリ'],
+  '監視-JP': ['銘柄名', '購入検討株価', '購入検討理由', 'Ticker', 'カテゴリ'],
+  '監視-US': ['銘柄名', '購入検討株価', '購入検討理由', 'Ticker', 'カテゴリ'],
   '売買履歴': ['日付', '銘柄名', 'Ticker', '売買区分', '約定単価', '株数', '理由']
 };
 

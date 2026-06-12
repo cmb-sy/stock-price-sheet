@@ -50,6 +50,14 @@
       background: #fff; border: 1px solid #e5e7eb; border-radius: 8px;
       padding: 5px 9px; cursor: pointer; }
     .dirbtn:active { background: #f3f4f6; }
+    .catbox { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; }
+    .cat-ico { color: #9ca3af; font-size: 13px; }
+    .catbox select { font: inherit; font-size: 13px; color: #374151;
+      background: #fff; border: 1px solid #e5e7eb; border-radius: 8px;
+      padding: 4px 8px; max-width: 38vw; }
+    /* catbox が auto マージンで右寄せを担うので、後続 sortbox は固定間隔にする。
+       catbox 非表示時も meta の space-between が sortbox を右端に保つ。 */
+    .catbox + .sortbox { margin-left: 8px; }
 
     /* ---- stock-jump dropdown (header) & detail view ---- */
     .stockbox { display: inline-flex; align-items: center; gap: 6px; }
@@ -293,6 +301,10 @@
       <span class="stockbox" id="stockbox" style="display:none">
         <select id="stockSel" aria-label="銘柄を選択して詳細を開く"></select>
       </span>
+      <span class="catbox" id="catbox" style="display:none">
+        <span class="cat-ico">▽</span>
+        <select id="catSel" aria-label="カテゴリで絞り込み"></select>
+      </span>
       <span class="sortbox" id="sortbox" style="display:none">
         <span class="sort-ico">⇅</span>
         <select id="sortSel" aria-label="並び替える指標"></select>
@@ -365,6 +377,7 @@
     '株主優待': '優待の内容',
     '購入理由': '購入の根拠をメモ',
     'ナンピン検討株価': '買い増しを検討する株価', 'ナンピン検討株数': '買い増しを検討する株数',
+    'カテゴリ': '業種・テーマの自由分類（例: 量子系、金属）。一覧の絞り込みに使われます',
     '日付': '取引日（例 2026-06-08）', '売買区分': '買い / 売り',
     '約定単価': '約定した1株の価格', '株数': '約定した株数',
     '理由': '売買の根拠をメモ（AI 分析の材料）'
@@ -445,7 +458,7 @@
 
   var state = { tab: null, headers: [], rows: [], view: [], editing: null,
     original: {}, holdingsTab: null, required: [], noteText: {},
-    sortKey: null, sortDir: 'desc', detailRow: 0 };
+    sortKey: null, sortDir: 'desc', catFilter: '', detailRow: 0 };
 
   function $(id) { return document.getElementById(id); }
   function esc(s) {
@@ -554,9 +567,10 @@
   function selectTab(tab, btn) {
     if (state.tab === tab) return;
     state.tab = tab;
-    state.sortKey = null; state.sortDir = 'desc';
+    state.sortKey = null; state.sortDir = 'desc'; state.catFilter = '';
     $('sortbox').style.display = 'none';  // hide synchronously; buildSortUI() re-shows on data load
     $('stockbox').style.display = 'none'; // ditto; buildStockUI() re-shows on data load
+    $('catbox').style.display = 'none';   // ditto; buildCatUI() re-shows on data load
     [].forEach.call(document.querySelectorAll('.seg'), function (e) { e.classList.remove('active'); });
     if (btn) btn.classList.add('active');
     $('addFab').classList.remove('show');
@@ -652,6 +666,7 @@
       }
       buildSortUI();
       buildStockUI();
+      buildCatUI();
       render();
       $('count').textContent = state.detailRow ? '詳細表示' : '';
       $('addFab').classList.toggle('show',
@@ -887,6 +902,53 @@
     $('sortbox').style.display = '';
   }
 
+  // ---- category filter (sortbox の横の絞り込み) ----
+  var CATEGORY = 'カテゴリ';
+  var UNCAT = '未分類';
+
+  function categoryIndex() {
+    var idx = -1;
+    state.headers.forEach(function (h, i) { if (h.label === CATEGORY) idx = i; });
+    return idx;
+  }
+
+  // 候補は現在タブの入力済みカテゴリ値から自動生成。カテゴリ列が無いタブ
+  // （売買履歴など）・詳細ビュー・値が1件も無いときは非表示にする。
+  function buildCatUI() {
+    var box = $('catbox'), sel = $('catSel');
+    var idx = categoryIndex();
+    if (state.detailRow || idx < 0) {
+      box.style.display = 'none'; state.catFilter = ''; return;
+    }
+    var seen = {}, cats = [], hasBlank = false;
+    state.rows.forEach(function (r) {
+      var v = String(r.cells[idx] == null ? '' : r.cells[idx]).trim();
+      if (!v) { hasBlank = true; return; }
+      if (!seen[v]) { seen[v] = 1; cats.push(v); }
+    });
+    if (!cats.length) { box.style.display = 'none'; state.catFilter = ''; return; }
+    cats.sort(function (a, b) { return a.localeCompare(b, 'ja'); });
+    var opts = '<option value="">すべて</option>' + cats.map(function (c) {
+      return '<option value="' + esc(c) + '">' + esc(c) + '</option>';
+    }).join('');
+    if (hasBlank) opts += '<option value="' + esc(UNCAT) + '">' + UNCAT + '</option>';
+    sel.innerHTML = opts;
+    sel.value = state.catFilter;
+    // 再読込で選択中の候補が消えていたらフィルタを解除する
+    if (sel.value !== state.catFilter) { state.catFilter = ''; sel.value = ''; }
+    box.style.display = '';
+  }
+
+  function applyCatFilter() {
+    if (state.detailRow || !state.catFilter) return;
+    var idx = categoryIndex();
+    if (idx < 0) return;
+    state.view = state.view.filter(function (r) {
+      var v = String(r.cells[idx] == null ? '' : r.cells[idx]).trim();
+      return state.catFilter === UNCAT ? !v : v === state.catFilter;
+    });
+  }
+
   function render() {
     var H = state.headers;
     state.noteText = {};
@@ -896,6 +958,12 @@
       return;
     }
     applySort();
+    applyCatFilter();
+    if (!state.view.length && state.catFilter) {
+      $('list').innerHTML = '<div class="empty"><div class="ico">🗂️</div>' +
+        '<div>このカテゴリの銘柄がありません</div></div>';
+      return;
+    }
     var detail = state.detailRow;
     if (detail) {
       // 詳細ビュー: URL の row に一致する1行だけを表示。行が見つからない場合
@@ -1247,6 +1315,7 @@
   $('addFab').onclick = openAdd;
   $('scrim').onclick = closeSheet;
   $('sortSel').onchange = function () { state.sortKey = this.value || null; render(); };
+  $('catSel').onchange = function () { state.catFilter = this.value; render(); };
   $('sortDir').onclick = function () {
     state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
     this.textContent = dirGlyph();
