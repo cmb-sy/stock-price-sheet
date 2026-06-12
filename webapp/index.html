@@ -66,23 +66,6 @@
     /* ---- list ---- */
     main { padding: 6px 12px 24px; max-width: 720px; margin: 0 auto; }
 
-    /* ---- portfolio summary (holdings tab) ---- */
-    .portfolio { background: var(--navy); color: #fff; border-radius: var(--radius);
-      padding: 16px 18px; margin: 8px 0 4px; animation: rise .25s ease both; }
-    .pf-lab { display: flex; align-items: center; gap: 6px;
-      color: #93c5fd; font-size: 10px; font-weight: 700; letter-spacing: .04em; }
-    .pf-lab .dot { width: 7px; height: 7px; border-radius: 999px; background: #93c5fd; }
-    .pf-big { font-size: 30px; font-weight: 800; letter-spacing: -.01em; margin: 8px 0 0;
-      font-variant-numeric: tabular-nums; }
-    .pf-stats { display: flex; margin-top: 12px; }
-    .pf-stat { flex: 1; padding: 4px 12px; }
-    .pf-stat:first-child { padding-left: 0; }
-    .pf-stat .k { color: #94a3b8; font-size: 10px; font-weight: 600; display: block; }
-    .pf-stat .v { font-size: 15px; font-weight: 700; margin-top: 3px;
-      font-variant-numeric: tabular-nums; color: #fff; }
-    .pf-stat .v.pos { color: #34d399; }
-    .pf-stat .v.neg { color: #f87171; }
-
     /* ---- cards ---- */
     .card {
       background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
@@ -287,15 +270,19 @@
        Below 900px keep the single-column mobile layout. From 900px up, lay the
        cards out as a multi-column grid driven by `auto-fill, minmax(340px, 1fr)`
        (so cards stay readable; 2 columns at ~900px, 3 around 1280px). The
-       portfolio summary and glossary chrome span the full row. Cards in the
-       same row stretch to equal height (default grid align-items: stretch). */
+       glossary chrome spans the full row. Cards in the same row stretch to
+       equal height (default grid align-items: stretch); each card is a flex
+       column with the foot pinned to the bottom so 更新/編集 lines up across
+       the row regardless of content height. */
     @media (min-width: 900px) {
       main { max-width: 1280px;
         display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
         gap: 16px; }
-      .portfolio, .empty, .gloss-search, .gloss-intro, .gloss-chips,
+      .empty, .gloss-search, .gloss-intro, .gloss-chips,
       #glossBody { grid-column: 1 / -1; }
       .card, .skel { margin: 0; }
+      .card { display: flex; flex-direction: column; }
+      .card .card-foot { margin-top: auto; padding-top: 12px; }
     }
     @media (min-width: 1400px) { main { max-width: 1480px; } }
   </style>
@@ -820,35 +807,6 @@
       '<span class="v ' + (m.cls || '') + '">' + m.html + '</span></div>';
   }
 
-  function portfolioHtml() {
-    var totVal = 0, totPL = 0, totCost = 0, hasVal = false, hasCost = false;
-    state.rows.forEach(function (row) {
-      var byLabel = byLabelOf(state.headers, row.cells);
-      function num(label) { return byLabel[label] ? parseNum(byLabel[label].val) : null; }
-      var cur = num(ROLE.price), acq = num(DERIVE.acquire), sh = num(DERIVE.shares);
-      if (cur != null && sh != null) { totVal += cur * sh; hasVal = true; }
-      if (cur != null && acq != null && sh != null) {
-        totPL += (cur - acq) * sh; totCost += acq * sh; hasCost = true;
-      }
-    });
-    if (!hasVal) return '';
-    var plr = hasCost && totCost ? totPL / totCost * 100 : null;
-    var h = '<div class="portfolio">' +
-      '<div class="pf-lab"><span class="dot"></span>ポートフォリオ</div>' +
-      '<div class="pf-big">' + esc(yen(totVal)) + '</div>' +
-      '<div class="pf-stats">';
-    if (hasCost) {
-      h += '<div class="pf-stat"><span class="k">累計損益</span>' +
-        '<div class="v ' + signCls(totPL) + '">' + esc(yenSigned(totPL)) + '</div></div>';
-      h += '<div class="pf-stat"><span class="k">累計損益率</span>' +
-        '<div class="v ' + signCls(plr) + '">' + esc(pctSigned(plr)) + '</div></div>';
-    }
-    h += '<div class="pf-stat"><span class="k">銘柄数</span>' +
-      '<div class="v">' + state.rows.length + '</div></div>';
-    h += '</div></div>';
-    return h;
-  }
-
   // Curated sortable columns. A header-based option appears only if its label is
   // present in the current tab's headers; derived options appear per tab type. Order
   // here is the menu order.
@@ -955,7 +913,7 @@
       }
     }
     var isHoldings = state.tab === state.holdingsTab;
-    var out = (isHoldings && !detail) ? portfolioHtml() : '';
+    var out = '';
     if (detail) {
       out += '<div><a class="backlink" href="' + esc(INIT.execUrl || '?') +
         '" target="_top">← 一覧へ戻る</a></div>';
