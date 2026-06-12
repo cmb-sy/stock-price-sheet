@@ -12,7 +12,8 @@ Subcommands:
               writable; any other role is refused.
 
 Track B roles this skill may write:
-  ai_comment (AIコメント) · target_* (機関別目標株価 8列)
+  ai_comment (AIコメント) · target_* (機関別目標株価 8列) ·
+  ai_nampin_price (AIのおすすめナンピン株価) · ai_nampin_shares (AIのおすすめナンピン株数)
 
 This output is consumed by Claude locally during a manual run. It is never
 committed and must not be piped into the repo or into Actions logs.
@@ -56,13 +57,19 @@ READ_ROLES = (
     "horizon",
     "target_sell",
     "current_price",
+    "acquire_price",
+    "shares",
     "dividend_yield",
     "dividend_amount",
     "purchase_reason",
     "ai_comment",
+    "nampin_price",
+    "nampin_shares",
+    "ai_nampin_price",
+    "ai_nampin_shares",
 ) + TARGET_ROLES
 # The only roles this skill may write.
-WRITE_ROLES = ("ai_comment",) + TARGET_ROLES
+WRITE_ROLES = ("ai_comment", "ai_nampin_price", "ai_nampin_shares") + TARGET_ROLES
 
 
 def _holdings_tab(cfg: dict) -> dict:

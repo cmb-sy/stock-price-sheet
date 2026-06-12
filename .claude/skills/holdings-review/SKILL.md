@@ -1,6 +1,6 @@
 ---
 name: holdings-review
-description: For each holding in the 保有銘柄 tab, deep-research the market environment and the stock from many angles over repeated loops, weigh it against the owner's own purchase reason / horizon / target sell price, and write a personalized advisory comment addressed to the owner into the AIコメント column plus per-institution analyst target prices into the 目標株価（…） columns. Manual, owner-only run.
+description: For each holding in the 保有銘柄 tab, deep-research the market environment and the stock from many angles over repeated loops, weigh it against the owner's own purchase reason / horizon / target sell price, and write a personalized advisory comment addressed to the owner into the AIコメント column, per-institution analyst target prices into the 目標株価（…） columns, and an AI-recommended averaging-down price/share count into the AIのおすすめナンピン columns. Manual, owner-only run.
 argument-hint: "(no args; processes every row in 保有銘柄 that has a ticker)"
 ---
 
@@ -8,8 +8,9 @@ For each holding, write the owner a candid, personalized comment: given **why th
 bought it (購入理由)**, **their horizon (想定保有期間)**, and **their target sell price
 (目標売却株価)**, is the original thesis still intact, and what should they watch or
 do now? This is a **manually launched, owner-only skill**. It writes **only** the
-`AIコメント` column and the eight per-institution `目標株価（…）` columns; it never
-touches the manual columns or Track A's columns.
+`AIコメント` column, the eight per-institution `目標株価（…）` columns, and the two
+AI averaging-down columns (`AIのおすすめナンピン株価` / `AIのおすすめナンピン株数`);
+it never touches the manual columns or Track A's columns.
 
 (Repo files are in English; the sheet — tab names, headers, data — stays in
 Japanese. The tab name `保有銘柄` below is a sheet identifier, kept as-is.)
@@ -23,17 +24,24 @@ Japanese. The tab name `保有銘柄` below is a sheet identifier, kept as-is.)
   - `purchase_reason` 購入理由 — the owner's reason for buying (the thesis to test).
   - `horizon` 想定保有期間 — the intended holding horizon (short / mid / long).
   - `target_sell` 目標売却株価 — the price at which the owner intends to sell.
+  - `acquire_price` 取得株価 / `shares` 取得株数 — the owner's cost basis (read
+    only; the basis for the averaging-down math below).
+  - `nampin_price` ナンピン検討株価 / `nampin_shares` ナンピン検討株数 — the
+    averaging-down price/share count the owner is considering (optional; manual).
+    If filled, evaluate their plan in the comment.
   - Track A figures: `current_price` 現在株価, `dividend_yield` 配当利回り,
     `dividend_amount` 配当金.
   - `ai_comment` AIコメント — the existing comment (if any) to update.
+  - The existing AI averaging-down values (to update): `ai_nampin_price`
+    AIのおすすめナンピン株価 · `ai_nampin_shares` AIのおすすめナンピン株数.
   - The existing per-institution targets (to update): `target_nomura` 目標株価（野村） ·
     `target_daiwa` 目標株価（大和） · `target_smbc_nikko` 目標株価（SMBC日興） ·
     `target_mizuho` 目標株価（みずほ） · `target_mumss` 目標株価（三菱UFJMS） ·
     `target_gs` 目標株価（GS） · `target_ms` 目標株価（モルガンS） ·
     `target_jpm` 目標株価（JPM）.
-- **Only `ai_comment` and the eight `target_*` roles may be written**
-  (`research_io.py write` refuses any other role). 売買履歴 is **not** consulted by
-  this skill.
+- **Only `ai_comment`, the eight `target_*` roles, `ai_nampin_price` and
+  `ai_nampin_shares` may be written** (`research_io.py write` refuses any other
+  role). 売買履歴 is **not** consulted by this skill.
 
 ## Per-institution target prices (機関別目標株価)
 
@@ -83,6 +91,29 @@ until the primary source below has actually been checked.
 - The no-fabrication rule applies in full: if you cannot confirm an institution's
   target from a public source, it is `なし` — do not infer one from a consensus
   (consensus/平均 figures are never an institution's number).
+
+## AI-recommended averaging-down level (AIのおすすめナンピン株価・株数)
+
+These two cells are **Claude's own judgment** of a reasonable averaging-down
+(ナンピン) entry for an existing position — not a researched fact and not anyone's
+published number.
+
+- `ai_nampin_price`: derive from recent support levels, the YTD low, volatility-
+  typical pullback depth, and a valuation floor. The level must be **below the
+  owner's 取得株価 and at or below the 現在株価** — a price that cannot lower the
+  average cost is not an averaging-down level. **Cell format: price only**
+  (`¥2,400` / `$150`). No date, no words, no range.
+- `ai_nampin_shares`: **based on the owner's held 取得株数** (no fresh-capital
+  assumption). Size it from the average-cost reduction it achieves at the
+  recommended price (e.g. matching the held lot roughly halves the gap to the new
+  price). Respect lot sizes: JP stocks in multiples of 100, US stocks in whole
+  shares. **Cell format: share count only** (`100` / `5`).
+- If averaging down is not advisable (thesis impaired, downtrend likely to
+  continue, position already oversized), write `なし` (one word) in **both**
+  cells. Never fabricate a level you cannot justify.
+- The one-paragraph basis (and, if the owner filled ナンピン検討株価/株数, an
+  assessment of *their* plan) goes in `AIコメント`, not in the cells
+  (terse-cell rule).
 
 ## What the comment must be
 
@@ -166,13 +197,15 @@ picture is stable. Then judge it **through the lens of the owner's thesis and ho
 ### 3. Write
 
 Pass results as JSON via stdin, using the `row` from step 1. Each write carries a
-`fields` object of role→value (only `ai_comment` and `target_*` are accepted).
+`fields` object of role→value (only `ai_comment`, `target_*`, `ai_nampin_price`
+and `ai_nampin_shares` are accepted).
 
 ```bash
 echo '{"writes":[
   {"row":2,"fields":{
      "ai_comment":"<personalized comment to the owner, incl. research date>",
-     "target_nomura":"¥3,400 (2026/4)","target_gs":"なし"}},
+     "target_nomura":"¥3,400 (2026/4)","target_gs":"なし",
+     "ai_nampin_price":"¥2,400","ai_nampin_shares":"100"}},
   {"row":3,"fields":{"ai_comment":"<...>"}}
 ]}' | .venv/bin/python .claude/skills/holdings-review/research_io.py write
 ```
@@ -184,8 +217,11 @@ could not be confirmed and was therefore hedged in the comment, state that.
 
 ## What not to do
 
-- Writing to any column other than `AIコメント` and the eight `目標株価（…）` columns
-  (`research_io.py write` refuses it).
+- Writing to any column other than `AIコメント`, the eight `目標株価（…）` columns
+  and the two AIのおすすめナンピン columns (`research_io.py write` refuses it).
+- Writing the owner's manual ナンピン検討株価 / ナンピン検討株数 cells.
+- An `ai_nampin_price` at or above the 取得株価, or an `ai_nampin_shares` that
+  breaks the lot size — recompute or write `なし` in both cells.
 - One-shotting the research, or restating figures instead of forming a judgment.
 - Ignoring the owner's 購入理由 / 想定保有期間 / 目標売却株価 — the comment must be about
   *their* position, not a generic take.

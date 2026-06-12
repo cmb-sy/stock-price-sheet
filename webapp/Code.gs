@@ -33,7 +33,7 @@ var LABEL_NAME = '銘柄名';
 // Manual columns the UI may edit, per tab. Everything else is read-only. Mirrors
 // the manual roles in config.yaml / CLAUDE.md; labels are generic, no tickers/PII.
 var MANUAL_HEADERS = {
-  '保有銘柄': ['銘柄名', '想定保有期間', '目標売却株価', '取得株価', '取得株数', '株主優待', '購入理由', 'Ticker'],
+  '保有銘柄': ['銘柄名', '想定保有期間', '目標売却株価', '取得株価', '取得株数', '株主優待', '購入理由', 'Ticker', 'ナンピン検討株価', 'ナンピン検討株数'],
   '監視-JP': ['銘柄名', '購入検討株価', '購入検討理由', 'Ticker'],
   '監視-US': ['銘柄名', '購入検討株価', '購入検討理由', 'Ticker'],
   '売買履歴': ['日付', '銘柄名', 'Ticker', '売買区分', '約定単価', '株数', '理由']
@@ -64,7 +64,7 @@ function _guard() {
   if (!_isAllowed()) throw new Error('アクセス権がありません');
 }
 
-function doGet() {
+function doGet(e) {
   if (!_isAllowed()) {
     return HtmlService.createHtmlOutput(
       '<div style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;' +
@@ -75,7 +75,18 @@ function doGet() {
       '</div>'
     ).setTitle('アクセス権なし');
   }
-  return HtmlService.createTemplateFromFile('index').evaluate()
+  // URL パラメータ（?view=detail&tab=…&row=…）を INIT としてページに注入する。
+  // tab は TABS 照合・row は整数化・view はホワイトリストで、すべて安全な値に正規化
+  // してから埋め込む（生のクエリ文字列は決して HTML に入れない）。
+  var p = (e && e.parameter) || {};
+  var t = HtmlService.createTemplateFromFile('index');
+  t.initJson = JSON.stringify({
+    view: p.view === 'detail' ? 'detail' : 'list',
+    tab: TABS.indexOf(p.tab) >= 0 ? p.tab : '',
+    row: parseInt(p.row, 10) > 0 ? parseInt(p.row, 10) : 0,
+    execUrl: ScriptApp.getService().getUrl()
+  });
+  return t.evaluate()
     .setTitle('保有・監視シート')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }

@@ -71,6 +71,10 @@ worksheet's `header` array.
 | `target_gs`           | 目標株価（GS）       | Track B (holdings-review)                     |
 | `target_ms`           | 目標株価（モルガンS）| Track B (holdings-review)                     |
 | `target_jpm`          | 目標株価（JPM）      | Track B (holdings-review)                     |
+| `nampin_price`        | ナンピン検討株価     | manual; holdings-review input                 |
+| `nampin_shares`       | ナンピン検討株数     | manual; holdings-review input                 |
+| `ai_nampin_price`     | AIのおすすめナンピン株価 | Track B (holdings-review)                 |
+| `ai_nampin_shares`    | AIのおすすめナンピン株数 | Track B (holdings-review)                 |
 
 **watchlist tab roles** (e.g. `監視-JP`, `監視-US`):
 

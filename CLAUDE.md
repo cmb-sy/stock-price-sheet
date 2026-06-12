@@ -78,11 +78,15 @@ Track A aborts on a missing `ticker`, and the `sheet-sync` skill reconciles labe
 | 購入理由             | manual              | purchase reason (the thesis) — holdings-review input        |
 | AIコメント           | **holdings-review** | Claude's personalized per-holding comment                   |
 | 目標株価（野村）〜（JPM） | **holdings-review** | per-institution analyst targets ×8 (野村/大和/SMBC日興/みずほ/三菱UFJMS/GS/モルガンS/JPM): `¥2,400 (2026/5)` or `なし` |
+| ナンピン検討株価     | manual              | averaging-down price the owner is considering — holdings-review input |
+| ナンピン検討株数     | manual              | averaging-down share count the owner is considering — holdings-review input |
+| AIのおすすめナンピン株価 | **holdings-review** | AI-recommended averaging-down price (price only, below 取得株価) or `なし` |
+| AIのおすすめナンピン株数 | **holdings-review** | AI-recommended averaging-down share count (count only, based on held 取得株数) or `なし` |
 
 Track A writes `現在株価` / `配当利回り` / `配当金` plus the derived
 `年初来安値との乖離率` here (any of these whose header is absent in the sheet is
-silently skipped). Track B = the **holdings-review** skill writes `AIコメント` and
-the eight `目標株価（…）` columns.
+silently skipped). Track B = the **holdings-review** skill writes `AIコメント`,
+the eight `目標株価（…）` columns and the two `AIのおすすめナンピン` columns.
 
 ### watchlist tabs (監視-JP / 監視-US)
 
@@ -123,7 +127,8 @@ the 購入検討株価 is a reasonable entry price.
 ## Track B (Claude skills) discipline
 
 Two manual, owner-only skills do the web research Track A cannot:
-**holdings-review** (holdings tab → `AIコメント` + 機関別目標株価 ×8) and
+**holdings-review** (holdings tab → `AIコメント` + 機関別目標株価 ×8 +
+`AIのおすすめナンピン株価`/`株数`) and
 **stock-research** (watchlist tabs → 業界やテーマ/業界PER/業界PBR/アナリスト予想株価/
 理論株価/AI分析コメント + 機関別目標株価 ×8). Both follow:
 

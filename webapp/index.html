@@ -51,6 +51,18 @@
       padding: 5px 9px; cursor: pointer; }
     .dirbtn:active { background: #f3f4f6; }
 
+    /* ---- stock-jump dropdown (header) & detail view ---- */
+    .stockbox { display: inline-flex; align-items: center; gap: 6px; }
+    .stockbox select { font: inherit; font-size: 13px; color: #374151;
+      background: #fff; border: 1px solid #e5e7eb; border-radius: 8px;
+      padding: 4px 8px; max-width: 46vw; }
+    body:not(.detail) .card { cursor: pointer; }
+    body.detail .segmented, body.detail .fab, body.detail .sortbox { display: none; }
+    /* 詳細ビューは常に1カラム・読みやすい幅（≥900px のグリッドより優先される）。 */
+    body.detail main { display: block; max-width: 760px; }
+    .backlink { display: inline-block; margin: 2px 0 10px; font-size: 13px;
+      font-weight: 600; color: var(--accent); text-decoration: none; }
+
     /* ---- list ---- */
     main { padding: 6px 12px 24px; max-width: 720px; margin: 0 auto; }
 
@@ -293,6 +305,9 @@
     <h1>保有・監視シート</h1>
     <div class="segmented" id="tabs"></div>
     <div class="meta"><span id="count"></span><span id="hint"></span>
+      <span class="stockbox" id="stockbox" style="display:none">
+        <select id="stockSel" aria-label="銘柄を選択して詳細を開く"></select>
+      </span>
       <span class="sortbox" id="sortbox" style="display:none">
         <span class="sort-ico">⇅</span>
         <select id="sortSel" aria-label="並び替える指標"></select>
@@ -331,6 +346,9 @@
 
   <?!= include('sortlib'); ?>
 <script>
+  // doGet が URL パラメータをサニタイズ済みの JSON で注入する
+  // （{view:'list'|'detail', tab, row, execUrl}）。
+  var INIT = <?!= initJson ?>;
   var ROLE = { name: '銘柄名', price: '現在株価', ticker: 'Ticker', updated: '更新時刻',
     theme: '業界やテーマ' };
   // Holdings cost-basis roles, used to derive 評価額 / 評価損益 client-side.
@@ -361,6 +379,7 @@
     '目標売却株価': '売却の目標価格', '取得株価': '購入時の株価', '取得株数': '保有株数',
     '想定保有期間': '短期 / 中期 / 長期 など', '株主優待': '優待の内容',
     '購入理由': '購入の根拠をメモ',
+    'ナンピン検討株価': '買い増しを検討する株価', 'ナンピン検討株数': '買い増しを検討する株数',
     '日付': '取引日（例 2026-06-08）', '売買区分': '買い / 売り',
     '約定単価': '約定した1株の価格', '株数': '約定した株数',
     '理由': '売買の根拠をメモ（AI 分析の材料）'
@@ -374,7 +393,7 @@
   // 列挙型 editable フィールドの <select> 選択肢（label -> options）。
   var SELECT_OPTS = { '売買区分': ['買い', '売り'] };
   // 入力時に「正の数」を要求する editable 列（Task 7 の numericFieldError が使用）。
-  var POSITIVE_NUM_FIELDS = ['約定単価', '株数'];
+  var POSITIVE_NUM_FIELDS = ['約定単価', '株数', 'ナンピン検討株価', 'ナンピン検討株数'];
 
   // Client-only "glossary" tab. Each section carries a tag matching the data source.
   var GLOSSARY_TAB = '用語解説';
@@ -441,7 +460,7 @@
 
   var state = { tab: null, headers: [], rows: [], view: [], editing: null,
     original: {}, holdingsTab: null, required: [], noteText: {},
-    sortKey: null, sortDir: 'desc' };
+    sortKey: null, sortDir: 'desc', detailRow: 0 };
 
   function $(id) { return document.getElementById(id); }
   function esc(s) {
@@ -496,8 +515,55 @@
       g.textContent = GLOSSARY_TAB;
       g.onclick = function () { selectTab(GLOSSARY_TAB, g); };
       box.appendChild(g);
+      // ?view=detail&tab=…&row=… で開かれたら単一銘柄の詳細ビューで起動する。
+      if (INIT.view === 'detail' && INIT.row > 0 && tabs.indexOf(INIT.tab) >= 0) {
+        state.detailRow = INIT.row;
+        document.body.classList.add('detail');
+        selectTab(INIT.tab, box.children[tabs.indexOf(INIT.tab)]);
+        return;
+      }
       if (tabs.length) selectTab(tabs[0], box.firstChild);
     }).withFailureHandler(fail).getTabs();
+  }
+
+  // ---- detail view (opens in a new browser tab) & stock-jump dropdown ----
+  function detailUrl(row) {
+    return (INIT.execUrl || '') + '?view=detail&tab=' +
+      encodeURIComponent(state.tab) + '&row=' + row;
+  }
+  function openDetail(row) { window.open(detailUrl(row), '_blank'); }
+  function buildStockUI() {
+    var box = $('stockbox'), sel = $('stockSel');
+    // 売買履歴は同一銘柄が複数行になるため銘柄ジャンプは出さない。
+    if (isHistoryTab() || !state.rows.length) { box.style.display = 'none'; return; }
+    var H = state.headers;
+    var opts = '<option value="">銘柄を選択…</option>';
+    state.rows.slice().sort(function (a, b) {
+      var an = nameOfRow(H, a), bn = nameOfRow(H, b);
+      return an.localeCompare(bn, 'ja');
+    }).forEach(function (r) {
+      opts += '<option value="' + r.row + '">' + esc(nameOfRow(H, r)) + '</option>';
+    });
+    sel.innerHTML = opts;
+    sel.onchange = function () {
+      var row = parseInt(sel.value, 10);
+      if (!row) return;
+      sel.value = '';
+      // 一覧からは新規タブで開く。詳細ページ内では同じタブで銘柄を切り替える。
+      if (state.detailRow) { window.open(detailUrl(row), '_top'); }
+      else { openDetail(row); }
+    };
+    box.style.display = '';
+  }
+  function nameOfRow(headers, r) {
+    var nameIdx = -1, tickerIdx = -1;
+    headers.forEach(function (h, i) {
+      if (h.label === ROLE.name) nameIdx = i;
+      if (h.label === ROLE.ticker) tickerIdx = i;
+    });
+    var n = nameIdx >= 0 ? String(r.cells[nameIdx] || '').trim() : '';
+    var t = tickerIdx >= 0 ? String(r.cells[tickerIdx] || '').trim() : '';
+    return n || t || '(名称未設定)';
   }
 
   function selectTab(tab, btn) {
@@ -505,6 +571,7 @@
     state.tab = tab;
     state.sortKey = null; state.sortDir = 'desc';
     $('sortbox').style.display = 'none';  // hide synchronously; buildSortUI() re-shows on data load
+    $('stockbox').style.display = 'none'; // ditto; buildStockUI() re-shows on data load
     [].forEach.call(document.querySelectorAll('.seg'), function (e) { e.classList.remove('active'); });
     if (btn) btn.classList.add('active');
     $('addFab').classList.remove('show');
@@ -599,10 +666,12 @@
         state.sortKey = ds.key; state.sortDir = ds.dir;
       }
       buildSortUI();
+      buildStockUI();
       render();
-      $('count').textContent = data.rows.length + ' 銘柄';
+      $('count').textContent = state.detailRow ? '詳細表示' : data.rows.length + ' 銘柄';
       $('hint').textContent = '✎ は編集できる項目';
-      $('addFab').classList.toggle('show', state.tab !== state.holdingsTab);
+      $('addFab').classList.toggle('show',
+        !state.detailRow && state.tab !== state.holdingsTab);
     }).withFailureHandler(fail).getRows(state.tab);
 
     // 台帳照合: 保有タブのときだけ売買履歴を並列取得し、届き次第チップを再描画する
@@ -853,6 +922,7 @@
   function dirGlyph() { return state.sortDir === 'asc' ? '↑' : '↓'; }
 
   function buildSortUI() {
+    if (state.detailRow) { $('sortbox').style.display = 'none'; return; }
     var sel = $('sortSel');
     sel.innerHTML = sortOptions().map(function (o) {
       return '<option value="' + esc(o.key) + '">' + esc(o.label) + '</option>';
@@ -871,8 +941,25 @@
       return;
     }
     applySort();
+    var detail = state.detailRow;
+    if (detail) {
+      // 詳細ビュー: URL の row に一致する1行だけを表示。行が見つからない場合
+      // （削除・行ズレ）はフォールバックして一覧へ誘導する。
+      state.view = state.view.filter(function (r) { return r.row === detail; });
+      if (!state.view.length) {
+        $('list').innerHTML = '<div class="empty"><div class="ico">🔍</div>' +
+          '<div>銘柄が見つかりません（削除または行の移動）</div>' +
+          '<div style="margin-top:10px"><a class="backlink" href="' +
+          esc(INIT.execUrl || '?') + '" target="_top">← 一覧へ戻る</a></div></div>';
+        return;
+      }
+    }
     var isHoldings = state.tab === state.holdingsTab;
-    var out = isHoldings ? portfolioHtml() : '';
+    var out = (isHoldings && !detail) ? portfolioHtml() : '';
+    if (detail) {
+      out += '<div><a class="backlink" href="' + esc(INIT.execUrl || '?') +
+        '" target="_top">← 一覧へ戻る</a></div>';
+    }
 
     state.view.forEach(function (row, idx) {
       var byLabel = byLabelOf(H, row.cells);
@@ -893,7 +980,7 @@
         pillTxt = isHoldings ? '保有' : '監視';
         pillCls = isHoldings ? '' : ' watch';
       }
-      var c = '<div class="card"><div class="card-top">';
+      var c = '<div class="card" data-row="' + row.row + '"><div class="card-top">';
       c += '<div class="avatar">' + esc(ch) + '</div>';
       c += '<div class="top-mid"><div class="name-row">' +
         '<span class="name">' + esc(name || '(名称未設定)') + '</span>' +
@@ -929,7 +1016,8 @@
         if (!v.trim()) return;
         var nid = 'n' + idx + '_' + n.label.replace(/[^\w]/g, '');
         state.noteText[nid] = v;
-        var longish = v.length > (n.ai ? 200 : 90);
+        // 詳細ビューでは折りたたまず全文を表示する。
+        var longish = !detail && v.length > (n.ai ? 200 : 90);
         var cls = 'note' + (n.man ? ' man' : '') + (n.ai ? ' ai' : '');
         notesHtml += '<div class="' + cls + '">' +
           '<span class="k">' + esc(n.label) + '</span>' +
@@ -963,6 +1051,17 @@
     [].forEach.call(document.querySelectorAll('.copy'), function (b) {
       b.onclick = function () { copyText(state.noteText[b.getAttribute('data-c')] || ''); };
     });
+    // カード押下で詳細を新規ブラウザタブで開く（一覧ビューのみ）。ボタン・リンク・
+    // テキスト選択中のクリックは詳細を開かない。
+    if (!detail) {
+      [].forEach.call(document.querySelectorAll('.card[data-row]'), function (el) {
+        el.onclick = function (ev) {
+          if (ev.target.closest && ev.target.closest('a, button, select, input, textarea')) return;
+          if (window.getSelection && String(window.getSelection()).length) return;
+          openDetail(parseInt(el.getAttribute('data-row'), 10));
+        };
+      });
+    }
   }
 
   // ---- editor ----

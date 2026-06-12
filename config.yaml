@@ -89,6 +89,10 @@ tabs:
       target_gs: "目標株価（GS）"              # B  per-institution analyst target (web research)
       target_ms: "目標株価（モルガンS）"       # B  per-institution analyst target (web research)
       target_jpm: "目標株価（JPM）"            # B  per-institution analyst target (web research)
+      nampin_price: "ナンピン検討株価"         # M  owner's averaging-down price under consideration
+      nampin_shares: "ナンピン検討株数"        # M  owner's averaging-down share count under consideration
+      ai_nampin_price: "AIのおすすめナンピン株価" # B  AI-recommended averaging-down price (price only; basis in AIコメント)
+      ai_nampin_shares: "AIのおすすめナンピン株数" # B  AI-recommended averaging-down share count (count only; based on held shares)
 
   - tab: "監視-JP"
     type: watchlist
