@@ -76,6 +76,7 @@ READ_ROLES = (
     "theoretical",
     "next_earnings",
     "analysis_comment",
+    "ai_dip_target",
 ) + TARGET_ROLES
 # The only roles this skill may write.
 WRITE_ROLES = (
@@ -85,6 +86,7 @@ WRITE_ROLES = (
     "analyst_target",
     "theoretical",
     "analysis_comment",
+    "ai_dip_target",
 ) + TARGET_ROLES
 
 

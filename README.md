@@ -26,7 +26,7 @@ Each tab has three update routes.
 | Route | Owner | Columns written |
 |-------|-------|-----------------|
 | **Track A** (auto) | `update_prices.py` (GitHub Actions / yfinance, no AI) | price, dividend, PER/PBR, market cap, EPS, rating, next earnings date, YTD-low gap, kabutan URL, timestamp, etc. |
-| **Track B** (manual) | Claude skills (`holdings-review` / `stock-research`) | `AIコメント` / `業界やテーマ`・`業界PER`・`業界PBR`・`アナリスト予想株価`・`理論株価`・`AI分析コメント` / 機関別`目標株価（…）`×8 (all tabs) |
+| **Track B** (manual) | Claude skills (`holdings-review` / `stock-research`) | `AIコメント` / `業界やテーマ`・`業界PER`・`業界PBR`・`アナリスト予想株価`・`理論株価`・`AI分析コメント`・`AI予想押し目` (watchlists) / 機関別`目標株価（…）`×8 (all tabs) |
 | **webapp** (manual) | Apps Script web app (`webapp/`) | **manual columns only** (Track A / Track B columns are read-only) |
 
 Columns are mapped **by header name, not by position** (see each tab's `columns` map in
@@ -93,7 +93,7 @@ never overwritten by any code path.
 |-------|---------|
 | manual | 銘柄名 / 購入検討株価 / 購入検討理由 / Ticker |
 | **Track A** | 現在株価 / 年初来安値との乖離率 / PER / PBR / 配当利回り / 時価総額 / 現在EPS / 年間EPS前年比（%） / レーティング / 次回決算日 / かぶたんURL / 更新時刻 |
-| **Track B** (stock-research) | 業界やテーマ / 業界PER / 業界PBR / アナリスト予想株価 / 理論株価 / AI分析コメント / 目標株価（野村/大和/SMBC日興/みずほ/三菱UFJMS/GS/モルガンS/JPM） |
+| **Track B** (stock-research) | 業界やテーマ / 業界PER / 業界PBR / アナリスト予想株価 / 理論株価 / AI分析コメント / 目標株価（野村/大和/SMBC日興/みずほ/三菱UFJMS/GS/モルガンS/JPM） / AI予想押し目 |
 
 > Track A derived columns: かぶたんURL is generated from the ticker (no fetch);
 > 年間EPS前年比（%） from `income_stmt` annual EPS; 年初来安値との乖離率 =

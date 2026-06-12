@@ -44,6 +44,7 @@ Japanese. Tab names like `監視-JP` / `監視-US` are sheet identifiers, kept a
     `target_mumss` 目標株価（三菱UFJMS） · `target_gs` 目標株価（GS） ·
     `target_ms` 目標株価（モルガンS） · `target_jpm` 目標株価（JPM） —
     per-institution analyst target prices (see the rules below).
+  - `ai_dip_target` AI予想押し目 — Claude's own dip-buy level (see the rules below).
 
 ## Per-institution target prices (機関別目標株価)
 
@@ -93,6 +94,22 @@ until the primary source below has actually been checked.
 - The no-fabrication rule applies in full: if you cannot confirm an institution's
   target from a public source, it is `なし` — do not infer one from a consensus
   (consensus/平均 figures are never an institution's number).
+
+## AI-predicted dip-buy level (AI予想押し目)
+
+`AI予想押し目` is **Claude's own judgment** of the price at which a pullback becomes
+a reasonable entry — not a researched fact and not anyone's published target.
+
+- Derive it from a combination of: recent support levels, the YTD low (Track A's
+  年初来安値との乖離率 gives the distance), pullback depth typical for the name's
+  volatility, and a valuation floor (PER/PBR vs. the industry averages you
+  researched).
+- **Cell format: price only** — `¥2,400` for JP stocks, `$150` for US stocks. No
+  date, no words, no range. The one-paragraph basis for the level goes in
+  `AI分析コメント`, not in the cell (terse-cell rule).
+- If no meaningful level can be set (e.g. a fresh IPO with no trading history, or
+  data too thin to defend any floor), write `なし` (one word). Never fabricate a
+  level you cannot justify in the comment.
 
 ## What the analysis comment must be
 

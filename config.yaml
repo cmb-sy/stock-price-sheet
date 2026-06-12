@@ -62,6 +62,7 @@ _watchlist_columns: &watchlist_columns
   target_gs: "目標株価（GS）"              # B  per-institution analyst target (web research)
   target_ms: "目標株価（モルガンS）"       # B  per-institution analyst target (web research)
   target_jpm: "目標株価（JPM）"            # B  per-institution analyst target (web research)
+  ai_dip_target: "AI予想押し目"            # B  AI-predicted dip-buy level (price only; basis in AI分析コメント)
 
 tabs:
   - tab: "保有銘柄"

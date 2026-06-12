@@ -106,6 +106,7 @@ worksheet's `header` array.
 | `target_gs`       | 目標株価（GS）     | Track B (stock-research)              |
 | `target_ms`       | 目標株価（モルガンS） | Track B (stock-research)           |
 | `target_jpm`      | 目標株価（JPM）    | Track B (stock-research)              |
+| `ai_dip_target`   | AI予想押し目       | Track B (stock-research)              |
 
 A header in the sheet not in the relevant table is **unknown**: do not guess its
 owner — list it in the report and ask the user how it should be filled.

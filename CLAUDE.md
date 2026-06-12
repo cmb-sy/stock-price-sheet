@@ -92,7 +92,7 @@ A richer layout (the owner is evaluating whether to buy). Roles → headers:
 |-------------|---------------------------------------------------------------------|
 | manual      | 銘柄名, 購入検討株価, 購入検討理由, Ticker                           |
 | **Track A** | 現在株価, 年初来安値との乖離率, PER, PBR, 配当利回り, 時価総額, 現在EPS, 年間EPS前年比（%）, レーティング, 次回決算日, かぶたんURL, 更新時刻 |
-| **Track B** | 業界やテーマ, 業界PER, 業界PBR, アナリスト予想株価, 理論株価, AI分析コメント, 目標株価（野村）〜（JPM） ×8 |
+| **Track B** | 業界やテーマ, 業界PER, 業界PBR, アナリスト予想株価, 理論株価, AI分析コメント, 目標株価（野村）〜（JPM） ×8, AI予想押し目 |
 
 Track A derives the EPS YoY % from `income_stmt` annual EPS, 次回決算日 from
 `Ticker.calendar` ("Earnings Date"), かぶたんURL from the ticker string (no fetch),
