@@ -291,7 +291,7 @@
   <header>
     <h1>保有・監視シート</h1>
     <div class="segmented" id="tabs"></div>
-    <div class="meta"><span id="count"></span><span id="hint"></span>
+    <div class="meta"><span id="count"></span>
       <span class="stockbox" id="stockbox" style="display:none">
         <select id="stockSel" aria-label="銘柄を選択して詳細を開く"></select>
       </span>
@@ -567,7 +567,7 @@
   }
 
   function renderGlossary() {
-    $('count').textContent = '用語解説'; $('hint').textContent = '';
+    $('count').textContent = '用語解説';
     var out = '<div class="gloss-search"><span class="ico">⌕</span>' +
       '<input id="glossQ" type="text" placeholder="用語を検索（例: PEG、業界PER）" ' +
       'autocomplete="off" aria-label="用語を検索"></div>';
@@ -635,7 +635,7 @@
 
   function load() {
     skeleton();
-    $('count').textContent = ''; $('hint').textContent = '';
+    $('count').textContent = '';
     // seq はタブ切替/再読込と非同期応答の競合ガード。古い応答は黙って捨てる。
     state.loadSeq = (state.loadSeq || 0) + 1;
     var seq = state.loadSeq;
@@ -655,8 +655,7 @@
       buildSortUI();
       buildStockUI();
       render();
-      $('count').textContent = state.detailRow ? '詳細表示' : data.rows.length + ' 銘柄';
-      $('hint').textContent = '✎ は編集できる項目';
+      $('count').textContent = state.detailRow ? '詳細表示' : '';
       $('addFab').classList.toggle('show',
         !state.detailRow && state.tab !== state.holdingsTab);
     }).withFailureHandler(fail).getRows(state.tab);
