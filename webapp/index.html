@@ -131,8 +131,6 @@
     .note.ai .k::before { content: "✦ "; }
     .note.ai .body { font-size: 14px; line-height: 1.7; color: #1f2937; margin-top: 2px; }
     .note.ai .body.clamp { -webkit-line-clamp: 6; }
-    .more { background: none; border: 0; color: var(--accent); font: inherit;
-      font-size: 12px; font-weight: 700; padding: 2px 0; cursor: pointer; }
     .ai-foot { display: flex; justify-content: flex-end; margin-top: 6px; }
     .copy { background: none; border: 0; color: var(--accent); font: inherit;
       font-size: 11px; font-weight: 700; cursor: pointer; padding: 2px 0; }
@@ -978,8 +976,7 @@
         var cls = 'note' + (n.man ? ' man' : '') + (n.ai ? ' ai' : '');
         notesHtml += '<div class="' + cls + '">' +
           '<span class="k">' + esc(n.label) + '</span>' +
-          '<div class="body' + (longish ? ' clamp' : '') + '" id="' + nid + '">' + esc(v) + '</div>' +
-          (longish ? '<button class="more" data-t="' + nid + '">もっと見る</button>' : '');
+          '<div class="body' + (longish ? ' clamp' : '') + '" id="' + nid + '">' + esc(v) + '</div>';
         if (n.ai) {
           notesHtml += '<div class="ai-foot"><button class="copy" data-c="' + nid + '">コピー</button></div>';
         }
@@ -997,14 +994,6 @@
 
     [].forEach.call(document.querySelectorAll('.edit-btn'), function (b) {
       b.onclick = function () { openEdit(parseInt(b.getAttribute('data-i'), 10)); };
-    });
-    [].forEach.call(document.querySelectorAll('.more'), function (b) {
-      b.onclick = function () {
-        var body = $(b.getAttribute('data-t'));
-        var open = body.classList.toggle('clamp') === false;
-        b.textContent = open ? '閉じる' : 'もっと見る';
-        equalizeCardSections();
-      };
     });
     [].forEach.call(document.querySelectorAll('.copy'), function (b) {
       b.onclick = function () { copyText(state.noteText[b.getAttribute('data-c')] || ''); };
@@ -1027,9 +1016,10 @@
   // 理由文の長さが違うと内部の境界（.notes の点線・フッター）がずれる。行ごとに
   // .grid / .notes / .theme の min-height を行内最大値に合わせて境界線を揃える。
   function equalizeCardSections() {
-    var sections = ['.theme', '.grid', '.notes'];
+    // .notes は内側の note を揃えた後に測る（順序が前だと容器が伸びて底がずれる）。
+    var sections = ['.theme', '.grid', '.note.man', '.note.ai', '.notes'];
     [].forEach.call(
-      document.querySelectorAll('.card .theme, .card .grid, .card .notes'),
+      document.querySelectorAll('.card .theme, .card .grid, .card .note, .card .notes'),
       function (el) { el.style.minHeight = ''; });
     if (state.detailRow || window.innerWidth < 900) return;
     var rows = {};
