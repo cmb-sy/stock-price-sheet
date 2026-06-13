@@ -81,6 +81,7 @@ Track A aborts on a missing `ticker`, and the `sheet-sync` skill reconciles labe
 | ナンピン検討株数     | manual              | averaging-down share count the owner is considering — holdings-review input |
 | AIのおすすめナンピン株価 | **holdings-review** | AI-recommended averaging-down price (price only, below 取得株価) or `なし` |
 | カテゴリ             | manual              | owner's free-form sector/theme label (e.g. 量子系, 金属) — webapp filter |
+| AI再評価             | manual              | trigger flag: holdings-review processes only non-empty rows, clears on success |
 
 Track A writes `現在株価` / `配当利回り` / `配当金` plus the derived
 `年初来安値との乖離率` here (any of these whose header is absent in the sheet is
@@ -93,7 +94,7 @@ A richer layout (the owner is evaluating whether to buy). Roles → headers:
 
 | Owner       | Headers                                                              |
 |-------------|---------------------------------------------------------------------|
-| manual      | 銘柄名, 購入検討株価, 購入検討理由, Ticker, カテゴリ                 |
+| manual      | 銘柄名, 購入検討株価, 購入検討理由, Ticker, カテゴリ, AI再評価        |
 | **Track A** | 現在株価, 年初来安値との乖離率, PER, PBR, 配当利回り, 時価総額, 現在EPS, 年間EPS前年比（%）, レーティング, 次回決算日, かぶたんURL, 更新時刻 |
 | **Track B** | 業界やテーマ, 業界PER, 業界PBR, アナリスト予想株価, 理論株価, AI分析コメント, 目標株価（野村）〜（JPM） ×8, AI予想押し目 |
 

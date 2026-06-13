@@ -153,6 +153,15 @@
       border-radius: 10px; cursor: pointer; transition: .15s; }
     .edit-btn::before { content: "✎ "; }
     .edit-btn:active { transform: scale(.97); }
+    /* AI 再評価のワンタップトリガー（card-foot 内、編集ボタンの左）。空セル時は
+       accent 色、フラグ済みは disabled でグレースケール。 */
+    .foot-actions { display: inline-flex; align-items: center; gap: 8px; }
+    .recheck-btn { border: 1px solid var(--accent); background: var(--card); color: var(--accent);
+      font: inherit; font-weight: 700; font-size: 12.5px; padding: 7px 12px;
+      border-radius: 10px; cursor: pointer; transition: .15s; }
+    .recheck-btn:active { transform: scale(.97); }
+    .recheck-btn[disabled] { border-color: var(--line); color: var(--sub);
+      background: #f9fafb; cursor: default; transform: none; }
 
     /* ---- glossary ---- */
     .gloss-search { display: flex; align-items: center; gap: 8px; background: var(--card);
@@ -357,7 +366,7 @@
     { label: 'PBR（業界）', own: 'PBR', sub: '業界PBR' }
   ];
   // Labels that must NOT render as standalone chips (shown elsewhere / combined).
-  var SUPPRESS = { '業界PER': 1, '業界PBR': 1, '業界やテーマ': 1, 'PER': 1, 'PBR': 1 };
+  var SUPPRESS = { '業界PER': 1, '業界PBR': 1, '業界やテーマ': 1, 'PER': 1, 'PBR': 1, 'AI再評価': 1 };
   // Metrics colored by sign (positive = green, negative = red).
   var SIGNED = { '年間EPS前年比（%）': 1, '年初来安値との乖離率': 1 };
   // Full-width note blocks, shown in this order.
@@ -378,6 +387,7 @@
     '購入理由': '購入の根拠をメモ',
     'ナンピン検討株価': '買い増しを検討する株価', 'ナンピン検討株数': '買い増しを検討する株数',
     'カテゴリ': '業種・テーマの自由分類（例: 量子系、金属）。一覧の絞り込みに使われます',
+    'AI再評価': '✓ などを入れると次回 AI 実行時にこの銘柄だけ処理されます（処理後に自動クリア）',
     '日付': '取引日（例 2026-06-08）', '売買区分': '買い / 売り',
     '約定単価': '約定した1株の価格', '株数': '約定した株数',
     '理由': '売買の根拠をメモ（AI 分析の材料）'
@@ -1054,14 +1064,43 @@
 
       c += '<div class="card-foot">';
       c += '<span class="stamp">' + (String(stamp).trim() ? '更新 ' + esc(stamp) : '') + '</span>';
+      c += '<span class="foot-actions">';
+      // AI 再評価ボタン: 保有/監視タブのみ（売買履歴は対象外）。AI再評価セルが非空なら
+      // 「処理待ち」状態で disabled、空なら trigger 可能。
+      if (!isHistoryTab()) {
+        var rc = byLabel['AI再評価'];
+        var flagged = !!(rc && String(rc.val == null ? '' : rc.val).trim());
+        c += '<button class="recheck-btn" data-row="' + row.row + '"' +
+          (flagged ? ' disabled' : '') + '>' +
+          (flagged ? '⌛ AI処理待ち' : '✨ AIで見る') + '</button>';
+      }
       c += '<button class="edit-btn" data-i="' + idx + '">編集</button>';
-      c += '</div></div>';
+      c += '</span></div></div>';
       out += c;
     });
     $('list').innerHTML = out;
 
     [].forEach.call(document.querySelectorAll('.edit-btn'), function (b) {
       b.onclick = function () { openEdit(parseInt(b.getAttribute('data-i'), 10)); };
+    });
+    // AI 再評価のワンタップ trigger。saveRow にこのセル1つだけ送って即座にボタンを
+    // 「処理待ち」に切り替える。失敗時のみ元に戻す。
+    [].forEach.call(document.querySelectorAll('.recheck-btn'), function (b) {
+      b.onclick = function (ev) {
+        ev.stopPropagation();
+        if (b.disabled) return;
+        b.disabled = true;
+        b.textContent = '⌛ AI処理待ち';
+        google.script.run
+          .withSuccessHandler(function () { toast('AI 再評価を予約しました'); })
+          .withFailureHandler(function () {
+            b.disabled = false;
+            b.textContent = '✨ AIで見る';
+            toast('予約できませんでした');
+          })
+          .saveRow(state.tab, parseInt(b.getAttribute('data-row'), 10),
+                   { 'AI再評価': '✓' });
+      };
     });
     [].forEach.call(document.querySelectorAll('.copy'), function (b) {
       b.onclick = function () { copyText(state.noteText[b.getAttribute('data-c')] || ''); };

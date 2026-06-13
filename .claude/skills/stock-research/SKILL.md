@@ -22,6 +22,8 @@ Japanese. Tab names like `監視-JP` / `監視-US` are sheet identifiers, kept a
 - Columns are resolved by **header name**, not position (see `sheet.py`), so a
   column move in the sheet does not break this skill.
 - Inputs read for each stock (role → header label):
+  - `ai_recheck` AI再評価 — re-evaluation trigger flag set by the owner via
+    the webapp button (see **Re-evaluation trigger** below). Drives row selection.
   - `my_target` 購入検討株価 — the price the owner is considering buying at.
   - `consider_reason` 購入検討理由 — the owner's reason for considering it (the
     thesis to test, as in holdings-review's 購入理由).
@@ -45,6 +47,26 @@ Japanese. Tab names like `監視-JP` / `監視-US` are sheet identifiers, kept a
     `target_ms` 目標株価（モルガンS） · `target_jpm` 目標株価（JPM） —
     per-institution analyst target prices (see the rules below).
   - `ai_dip_target` AI予想押し目 — Claude's own dip-buy level (see the rules below).
+  - `ai_recheck` AI再評価 — may **only be written as `""` (empty)** to clear the
+    trigger after successful processing; the skill never sets a non-empty value.
+
+## Re-evaluation trigger (`ai_recheck`)
+
+Watchlist counts grow over time, so AI cost grows linearly if every row is
+re-researched on every run. The `ai_recheck` (AI再評価) column gates this:
+
+- **Default**: process **only the rows where `ai_recheck` is non-empty** (the
+  owner has tapped "✨ AIで見る" on those cards). Skip every other row entirely —
+  do not even fetch or research them.
+- For each processed row, write the usual Track B outputs **and** include
+  `ai_recheck: ""` in the same `writes` batch so the trigger clears on success.
+  If a row's writes fail partway, leave the flag set so the next run retries.
+- If **zero rows** have `ai_recheck` set, write nothing and report counts only
+  ("対象行 0"). Do not silently fall back to processing everything.
+- **Override**: when the owner explicitly asks ("全銘柄を再評価して" / "全部見て"
+  / "ignore the flag and re-run all"), process every row with a ticker and
+  clear `ai_recheck` for the ones that had it. The default behavior is
+  trigger-gated; the override must be requested in the prompt.
 
 ## Per-institution target prices (機関別目標株価)
 

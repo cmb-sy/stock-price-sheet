@@ -21,6 +21,8 @@ Japanese. The tab name `保有銘柄` below is a sheet identifier, kept as-is.)
 - Columns are resolved by **header name**, not position (see `sheet.py`), so a
   column move in the sheet does not break this skill.
 - Inputs read for each holding (role → header label):
+  - `ai_recheck` AI再評価 — re-evaluation trigger flag set by the owner via
+    the webapp button (see **Re-evaluation trigger** below). Drives row selection.
   - `purchase_reason` 購入理由 — the owner's reason for buying (the thesis to test).
   - `target_sell` 目標売却株価 — the price at which the owner intends to sell.
   - `acquire_price` 取得株価 / `shares` 取得株数 — the owner's cost basis (read
@@ -38,9 +40,30 @@ Japanese. The tab name `保有銘柄` below is a sheet identifier, kept as-is.)
     `target_mizuho` 目標株価（みずほ） · `target_mumss` 目標株価（三菱UFJMS） ·
     `target_gs` 目標株価（GS） · `target_ms` 目標株価（モルガンS） ·
     `target_jpm` 目標株価（JPM）.
-- **Only `ai_comment`, the eight `target_*` roles and `ai_nampin_price` may be
-  written** (`research_io.py write` refuses any other role). 売買履歴 is **not**
-  consulted by this skill.
+- **Only `ai_comment`, the eight `target_*` roles, `ai_nampin_price`, and
+  `ai_recheck` may be written** (`research_io.py write` refuses any other role).
+  `ai_recheck` may **only be written as `""` (empty)** to clear the trigger after
+  successful processing; the skill never sets a non-empty `ai_recheck`. 売買履歴 is
+  **not** consulted by this skill.
+
+## Re-evaluation trigger (`ai_recheck`)
+
+Stock counts grow over time, so AI cost grows linearly if every row is
+re-processed on every run. The `ai_recheck` (AI再評価) column gates this:
+
+- **Default**: process **only the rows where `ai_recheck` is non-empty** (the
+  owner has tapped "✨ AIで見る" on those cards). Skip every other row entirely —
+  do not even fetch or research them.
+- For each processed row, write the usual outputs (`ai_comment`, the 8
+  `target_*`, `ai_nampin_price`) **and** include `ai_recheck: ""` in the same
+  `writes` batch so the trigger clears on success. If the row's writes fail
+  partway, leave the flag set so the next run retries.
+- If **zero rows** have `ai_recheck` set, write nothing and report counts only
+  ("対象行 0"). Do not silently fall back to processing everything.
+- **Override**: when the owner explicitly asks ("全銘柄を再評価して" / "全部見て"
+  / "ignore the flag and re-run all"), process every row with a ticker and
+  clear `ai_recheck` for the ones that had it. The default behavior is
+  trigger-gated; the override must be requested in the prompt.
 
 ## Per-institution target prices (機関別目標株価)
 

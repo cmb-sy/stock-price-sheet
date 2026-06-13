@@ -17,7 +17,10 @@ Subcommands:
 Track B roles this skill may write:
   theme (業界やテーマ) · industry_per (業界PER) · industry_pbr (業界PBR) ·
   analyst_target (アナリスト予想株価) · theoretical (理論株価) ·
-  analysis_comment (AI分析コメント) · target_* (機関別目標株価 8列)
+  analysis_comment (AI分析コメント) · target_* (機関別目標株価 8列) ·
+  ai_dip_target (AI予想押し目) ·
+  ai_recheck (AI再評価) — manual trigger flag the skill clears (writes "") on
+  successful processing of a row; never set to a non-empty value by the skill
 
 This output is consumed by Claude locally during a manual run. It is never
 committed and must not be piped into the repo or into Actions logs.
@@ -77,8 +80,11 @@ READ_ROLES = (
     "next_earnings",
     "analysis_comment",
     "ai_dip_target",
+    "ai_recheck",
 ) + TARGET_ROLES
-# The only roles this skill may write.
+# The only roles this skill may write. ai_recheck is a manual trigger flag the
+# skill MUST clear (write "") on each row it processes; the skill never writes a
+# non-empty ai_recheck value.
 WRITE_ROLES = (
     "theme",
     "industry_per",
@@ -87,6 +93,7 @@ WRITE_ROLES = (
     "theoretical",
     "analysis_comment",
     "ai_dip_target",
+    "ai_recheck",
 ) + TARGET_ROLES
 
 

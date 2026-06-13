@@ -13,7 +13,9 @@ Subcommands:
 
 Track B roles this skill may write:
   ai_comment (AIコメント) · target_* (機関別目標株価 8列) ·
-  ai_nampin_price (AIのおすすめナンピン株価)
+  ai_nampin_price (AIのおすすめナンピン株価) ·
+  ai_recheck (AI再評価) — manual trigger flag the skill clears (writes "") on
+  successful processing of a row; never set to a non-empty value by the skill
 
 This output is consumed by Claude locally during a manual run. It is never
 committed and must not be piped into the repo or into Actions logs.
@@ -65,9 +67,12 @@ READ_ROLES = (
     "nampin_price",
     "nampin_shares",
     "ai_nampin_price",
+    "ai_recheck",
 ) + TARGET_ROLES
-# The only roles this skill may write.
-WRITE_ROLES = ("ai_comment", "ai_nampin_price") + TARGET_ROLES
+# The only roles this skill may write. ai_recheck is a manual trigger flag the
+# skill MUST clear (write "") on each row it processes; the skill never writes a
+# non-empty ai_recheck value.
+WRITE_ROLES = ("ai_comment", "ai_nampin_price", "ai_recheck") + TARGET_ROLES
 
 
 def _holdings_tab(cfg: dict) -> dict:

@@ -60,6 +60,7 @@ _watchlist_columns: &watchlist_columns
   target_jpm: "目標株価（JPM）"            # B  per-institution analyst target (web research)
   ai_dip_target: "AI予想押し目"            # B  AI-predicted dip-buy level (price only; basis in AI分析コメント)
   category: "カテゴリ"                     # M  owner's free-form sector/theme label (webapp filter)
+  ai_recheck: "AI再評価"                   # M  AI re-evaluation trigger (non-empty = process this row; skill clears on success)
 
 tabs:
   - tab: "保有銘柄"
@@ -89,6 +90,7 @@ tabs:
       nampin_shares: "ナンピン検討株数"        # M  owner's averaging-down share count under consideration
       ai_nampin_price: "AIのおすすめナンピン株価" # B  AI-recommended averaging-down price (price only; basis in AIコメント)
       category: "カテゴリ"                     # M  owner's free-form sector/theme label (webapp filter)
+      ai_recheck: "AI再評価"                   # M  AI re-evaluation trigger (non-empty = process this row; holdings-review clears on success)
 
   - tab: "監視-JP"
     type: watchlist

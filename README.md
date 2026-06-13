@@ -81,7 +81,7 @@ never overwritten by any code path.
 
 | Header | Owner | Meaning |
 |--------|-------|---------|
-| 銘柄名 / 目標売却株価 / 取得株価 / 取得株数 / 株主優待 / 購入理由 / Ticker / ナンピン検討株価 / ナンピン検討株数 / カテゴリ | manual | name, target sell price, cost basis, shares, shareholder benefit, purchase reason, ticker, averaging-down price/shares under consideration, free-form sector/theme label (webapp filter) |
+| 銘柄名 / 目標売却株価 / 取得株価 / 取得株数 / 株主優待 / 購入理由 / Ticker / ナンピン検討株価 / ナンピン検討株数 / カテゴリ / AI再評価 | manual | name, target sell price, cost basis, shares, shareholder benefit, purchase reason, ticker, averaging-down price/shares under consideration, free-form sector/theme label (webapp filter), AI re-evaluation trigger (skill processes only non-empty rows, clears on success) |
 | 現在株価 / 配当利回り / 配当金 | **Track A** | yfinance (配当金 = per-share dividend × 取得株数) |
 | 年初来安値との乖離率 | **Track A** (derived) | (現在株価 − YTD low) / YTD low × 100 (gap above the year-to-date low) |
 | AIコメント | **Track B** (holdings-review) | individualized advice using 購入理由 / 目標売却株価 and the Track A figures (target 500–900 chars, structured paragraphs) |
@@ -92,7 +92,7 @@ never overwritten by any code path.
 
 | Owner | Headers |
 |-------|---------|
-| manual | 銘柄名 / 購入検討株価 / 購入検討理由 / Ticker / カテゴリ |
+| manual | 銘柄名 / 購入検討株価 / 購入検討理由 / Ticker / カテゴリ / AI再評価 |
 | **Track A** | 現在株価 / 年初来安値との乖離率 / PER / PBR / 配当利回り / 時価総額 / 現在EPS / 年間EPS前年比（%） / レーティング / 次回決算日 / かぶたんURL / 更新時刻 |
 | **Track B** (stock-research) | 業界やテーマ / 業界PER / 業界PBR / アナリスト予想株価 / 理論株価 / AI分析コメント / 目標株価（野村/大和/SMBC日興/みずほ/三菱UFJMS/GS/モルガンS/JPM） / AI予想押し目 |
 

@@ -74,6 +74,7 @@ worksheet's `header` array.
 | `nampin_shares`       | ナンピン検討株数     | manual; holdings-review input                 |
 | `ai_nampin_price`     | AIのおすすめナンピン株価 | Track B (holdings-review)                 |
 | `category`            | カテゴリ             | manual; webapp filter (sector/theme label)    |
+| `ai_recheck`          | AI再評価             | manual; trigger flag (skill processes only non-empty rows, clears on success) |
 
 **watchlist tab roles** (e.g. `監視-JP`, `監視-US`):
 
@@ -111,6 +112,7 @@ worksheet's `header` array.
 | `target_jpm`      | 目標株価（JPM）    | Track B (stock-research)              |
 | `ai_dip_target`   | AI予想押し目       | Track B (stock-research)              |
 | `category`        | カテゴリ           | manual; webapp filter (sector/theme label) |
+| `ai_recheck`      | AI再評価           | manual; trigger flag (skill processes only non-empty rows, clears on success) |
 
 A header in the sheet not in the relevant table is **unknown**: do not guess its
 owner — list it in the report and ask the user how it should be filled.
